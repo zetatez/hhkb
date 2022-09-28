@@ -1,0 +1,53 @@
+# parameters
+###
+font                            "-misc-dejavu sans-medium-o-normal--0-0-0-0-p-0-adobe-standard"
+cursor-rate-factor              1000000000000000
+cursor-min-speed                8
+cursor-max-speed                128
+cursor-size-width               10
+cursor-size-hegiht              10
+cursor-bg-color                 "#0000FF"
+hint-window-transparency        0.618
+hint-bg-color                   "#00BFFF"
+hint-letters                    "abcdefghijklmnopqrstuvwxyz[];,./"
+hint-rect-width                 20
+hint-rect-height                20
+hint-rect-font-size             8
+cover-window-transparency       0.618
+cover-bg-color                  "#0000FF"
+
+# keymap
+###
+map Alt|Control+q               quit
+map Alt|Control+r               restart
+map Alt|Control+n               set-to-norm-mode
+map Alt|Control+h               set-to-hint-mode
+map Alt|Control+c               set-to-cover-mode
+map Escape                      escape-norm
+map Escape                      escape-hint
+map Escape                      escape-cover
+map h                           move-left
+map j                           move-down
+map k                           move-up
+map l                           move-right
+map Shift+u                     norm-vim-move-up
+map Shift+m                     norm-vim-move-middle-vertical
+map Shift+l                     norm-vim-move-down
+map b                           norm-vim-move-begin
+map e                           norm-vim-move-end
+map Shift+c                     norm-vim-move-middle-horizontal
+map c                           norm-vim-move-center
+map a                           norm-vim-move-upleft
+map s                           norm-vim-move-bottomleft
+map d                           norm-vim-move-bottomright
+map f                           norm-vim-move-upright
+map v                           norm-select
+map Shift+v                     norm-select-line
+map o                           norm-scroll-up
+map i                           norm-scroll-down
+map Shift+i                     norm-scroll-left
+map Shift+o                     norm-scroll-right
+map n                           cursor-left-click
+map m                           cursor-middle-click
+map comma                       cursor-rihgt-click
+map BackSpace                   hint-rollback

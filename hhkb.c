@@ -317,11 +317,13 @@ void handler_of_hint() {
   depth = XDefaultDepth(dpy, screen);
 
   colormap = DefaultColormap(dpy, screen); XParseColor(dpy, colormap, cfg.hint_bg_color.t.s, &color); XAllocColor(dpy, colormap, &color);
+  attr.border_pixel = BlackPixel(dpy, screen);
   attr.background_pixel = color.pixel;
   attr.override_redirect = True;
   attr.event_mask = ExposureMask;
 
-  hintwin = XCreateWindow(dpy, root, 0, 0, selmon->mw, selmon->mh, 0, depth, InputOutput, visual, CWColormap|CWBorderPixel|CWBackPixel|CWOverrideRedirect|CWEventMask, &attr);
+  /* hintwin = XCreateWindow(dpy, root, 0, 0, selmon->mw, selmon->mh, 0, depth, InputOutput, visual, CWColormap|CWBorderPixel|CWBackPixel|CWOverrideRedirect|CWEventMask, &attr); */
+  hintwin = XCreateWindow(dpy, root, 0, 0, selmon->mw, selmon->mh, 0, depth, InputOutput, visual, CWBorderPixel|CWBackPixel|CWOverrideRedirect|CWEventMask, &attr);
 
   unsigned long opacity = (unsigned long)(0xFFFFFFFFul * (1 - cfg.hint_window_transparency.t.d));
   Atom XA_NET_WM_WINDOW_OPACITY = XInternAtom(dpy, "_NET_WM_WINDOW_OPACITY", False);
@@ -913,7 +915,6 @@ void setup(void) {
   if (!fontinfo) exit(cleanup(1));
 
   if (!strlen(cfg.hint_letters.t.s)) exit(cleanup(1));
-
 }
 
 int run(void (*setup)(void)) {

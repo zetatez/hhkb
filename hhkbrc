@@ -9,7 +9,7 @@ cursor-size-hegiht              10
 cursor-bg-color                 "#0000FF"
 hint-window-transparency        0.618
 hint-bg-color                   "#00BFFF"
-hint-letters                    "abcdefghijklmnopqrstuvwxyz[];,./"
+hint-letters                    "abcdefghijklmnopqrstuvwxyz"
 hint-rect-width                 20
 hint-rect-height                20
 hint-rect-font-size             8

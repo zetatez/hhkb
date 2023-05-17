@@ -922,8 +922,10 @@ int run(void (*setup)(void)) {
 
   XEvent ev;
   grab_mode_keys();
-  while (running && !XNextEvent(dpy, &ev))
+  while (running && !XNextEvent(dpy, &ev)) {
     handle_event(ev, entr_key_action, LENGTH(entr_key_action));
+    usleep(100);
+  }
 
   return EXIT_SUCCESS;
 }

@@ -5,7 +5,8 @@
 
 extern cfg_t cfg;
 
-int cfg_parse_mod(char *modstr) {
+int
+cfg_parse_mod(char *modstr) {
   int mod_mask;
   if (!strlen(modstr)) { mod_mask = NoSymbol; }
   else if (!strcmp(modstr, "Control") || !strcmp(modstr, "Control_L") || !strcmp(modstr, "Control_R" )) { mod_mask = ControlMask ; }
@@ -21,7 +22,8 @@ int cfg_parse_mod(char *modstr) {
   return mod_mask;
 }
 
-void cfg_parse_comb_key(char *val, int *mod_mask, KeySym *key) {
+void
+cfg_parse_comb_key(char *val, int *mod_mask, KeySym *key) {
   int mask = 0;
   KeySym ks = NoSymbol;
   char *m1, *m2, *k, *tmp;
@@ -39,28 +41,33 @@ void cfg_parse_comb_key(char *val, int *mod_mask, KeySym *key) {
     m1 = val;
     while(*val != '\0'){
       if (*val == '|') { tmp = val; val++; m2 = val; *tmp = '\0'; }
-      if (m1 && m2) break;
+      if (m1 && m2) { break; }
       val++;
     }
   }
 
-  if (*k != '\0')
+  if (*k != '\0') {
     ks = XStringToKeysym(k);
+  }
 
-  if (m1)
+  if (m1) {
     mask = cfg_parse_mod(m1);
+  }
 
-  if (m1 && m2)
+  if (m1 && m2) {
     mask |= cfg_parse_mod(m2);
+  }
 
-  if (!m1 && !m2)
+  if (!m1 && !m2) {
     mask = cfg_parse_mod("");
+  }
 
   *mod_mask = mask;
   *key = ks;
 }
 
-int cfg_set_item(char *desc, char *val) {
+int
+cfg_set_item(char *desc, char *val) {
   int mod_mask = 0;
   KeySym key = NoSymbol;
   if (!strcmp(desc, "font"                                 )) { val++; val[strlen(val)-1] = '\0'; memcpy(cfg.font.t.s, val, strlen(val)*sizeof(char))                            ; return 0; }
@@ -111,45 +118,46 @@ int cfg_set_item(char *desc, char *val) {
   else if (!strcmp(desc, "cursor-middle-click"             )) { cfg_parse_comb_key(val, &mod_mask, &key); cfg.cursor_middle_click.t.k             = (comb_key_t){ mod_mask, key }; return 0; }
   else if (!strcmp(desc, "cursor-rihgt-click"              )) { cfg_parse_comb_key(val, &mod_mask, &key); cfg.cursor_right_click.t.k              = (comb_key_t){ mod_mask, key }; return 0; }
   else if (!strcmp(desc, "hint-rollback"                   )) { cfg_parse_comb_key(val, &mod_mask, &key); cfg.hint_rollback.t.k                   = (comb_key_t){ mod_mask, key }; return 0; }
-  else { // not found
-    return 1;
-  }
+  else { return 1; } // not found
 
   return 0;
 }
 
 // cfg load and parse config file
-void cfg_load_and_parse_config_file(const char *file) {
+void
+cfg_load_and_parse_config_file(const char *file) {
   const int maxlen = 256;
   FILE *fp = NULL;
   char line[maxlen];
   char *desc, *val;
 
   fp = fopen(file, "r");
-  if (!fp) return;
+  if (!fp) { return; }
 
   while(!feof(fp)) {
     fgets(line, maxlen, fp);
     char *l = strim(line);
 
-    if (l[0] == '#' || l[0] == '\0')
+    if (l[0] == '#' || l[0] == '\0') {
       continue;
+    }
 
     if (startwith(l, "map ")) {
       l = l+4;
       val = l;
       desc = l + strlen(l) - 1;
-      while(!isspace(*desc) && desc > l) desc--;
-      if (*desc != '\0')
+      while(!isspace(*desc) && desc > l) { desc--; }
+      if (*desc != '\0') {
         desc++;
-      while(!isspace(*l)) l++;
+      }
+      while(!isspace(*l)) { l++; }
       *l = '\0';
     } else {
       desc = l;
       val = l;
-      while(!isspace(*val)) val++;
-      while(isspace(*val)) val++;
-      while(!isspace(*l)) l++;
+      while(!isspace(*val)) { val++; }
+      while(isspace(*val)) { val++; }
+      while(!isspace(*l)) { l++; }
       *l = '\0';
     }
     cfg_set_item(desc, val);
@@ -159,7 +167,8 @@ void cfg_load_and_parse_config_file(const char *file) {
 }
 
 // cfg source config file
-void cfg_source_config_file(void) {
+void
+cfg_source_config_file(void) {
   int len = 1024;
   char *file = (char*)malloc(len*sizeof(char));
 
@@ -169,23 +178,28 @@ void cfg_source_config_file(void) {
   cfg_load_and_parse_config_file("/etc/hhkbrc");
 
   if (home_dir) {
-    if (sprintf(file, "%s/.hhkbrc", home_dir) >= 0)
+    if (sprintf(file, "%s/.hhkbrc", home_dir) >= 0) {
       cfg_load_and_parse_config_file(file);
+    }
   }
 
   if (xdg_config_home) {
-    if (sprintf(file, "%s/hhkb/hhkbrc", xdg_config_home) >= 0)
+    if (sprintf(file, "%s/hhkb/hhkbrc", xdg_config_home) >= 0) {
       cfg_load_and_parse_config_file(file);
+    }
   } else {
-    if (home_dir)
-      if (sprintf(file, "%s/.config/hhkb/hhkbrc", home_dir) >= 0)
+    if (home_dir) {
+      if (sprintf(file, "%s/.config/hhkb/hhkbrc", home_dir) >= 0) {
         cfg_load_and_parse_config_file(file);
+      }
+    }
   }
 
   free(file);
 }
 
-void cfg_default(void) {
+void
+cfg_default(void) {
   cfg.font                            = (cfg_item_t){{ .s = "-misc-dejavu sans-medium-o-normal--0-0-0-0-p-0-adobe-standard" }, "font"                            };
   cfg.cursor_rate_factor              = (cfg_item_t){{ .l = 1000000000000000                                                }, "cursor-rate-factor"              };
   cfg.cursor_min_speed                = (cfg_item_t){{ .i = 8                                                               }, "cursor-min-speed"                };
@@ -236,7 +250,8 @@ void cfg_default(void) {
   cfg.hint_rollback                   = (cfg_item_t){{ .k = {NoSymbol          , XStringToKeysym("BackSpace")              }}, "hint-rollback"                   };
 }
 
-int init_cfg(void) {
+int
+init_cfg(void) {
   cfg_default();
   cfg_source_config_file();
   return EXIT_SUCCESS;

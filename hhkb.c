@@ -98,7 +98,8 @@ int  run(void (*setup)(void));
 int  cleanup(int dummy);
 int  help(void);
 
-int init_keys(void) {
+int
+init_keys(void) {
   comb_key_action_t entr_key_action_tmp[] = {
     { cfg.quit.t.k.mod                            , cfg.quit.t.k.key                            , quit                    , { 0                }}  ,
     { cfg.restart.t.k.mod                         , cfg.restart.t.k.key                         , restart                 , { 0                }}  ,
@@ -156,21 +157,22 @@ int init_keys(void) {
   return EXIT_SUCCESS;
 }
 
-int init_monitors(void) {
+int
+init_monitors(void) {
   dpy = XOpenDisplay(NULL);
-  if (!dpy)
+  if (!dpy) {
     return EXIT_FAILURE;
-
+  }
   screen = DefaultScreen(dpy);
   root = XRootWindow(dpy, screen);
   sw = DisplayWidth(dpy, screen);
   sh = DisplayHeight(dpy, screen);
   monitor_update();
-
   return EXIT_SUCCESS;
 }
 
-int init_cursor(void) {
+int
+init_cursor(void) {
   csr = ecalloc(1, sizeof(cursor_t));
   csr->rate_factor = cfg.cursor_rate_factor.t.l;
   csr->speed = cfg.cursor_min_speed.t.i;
@@ -182,39 +184,43 @@ int init_cursor(void) {
   csr->w = cfg.cursor_size_width.t.i;
   csr->h = cfg.cursor_size_height.t.i;
   csr->bg_color = cfg.cursor_bg_color.t.s;
-
   return EXIT_SUCCESS;
 }
 
-void updatenumlockmask(void) {
+void
+updatenumlockmask(void) {
   unsigned int i, j;
   XModifierKeymap *modmap;
-
   numlockmask = 0;
   modmap = XGetModifierMapping(dpy);
   for (i = 0; i < 8; i++) {
-    for (j = 0; j < modmap->max_keypermod; j++)
-      if (modmap->modifiermap[i * modmap->max_keypermod + j] == XKeysymToKeycode(dpy, XK_Num_Lock))
+    for (j = 0; j < modmap->max_keypermod; j++) {
+      if (modmap->modifiermap[i * modmap->max_keypermod + j] == XKeysymToKeycode(dpy, XK_Num_Lock)) {
         numlockmask = (1 << i);
+      }
+    }
   }
   XFreeModifiermap(modmap);
 }
 
-void grab_mode_keys(void) {
+void
+grab_mode_keys(void) {
   updatenumlockmask();
-
   KeyCode code;
   unsigned int i, j;
   unsigned int modifiers[] = { 0, LockMask, numlockmask, numlockmask | LockMask };
   XUngrabKey(dpy, AnyKey, AnyModifier, root);
   for (i = 0; i < LENGTH(entr_key_action); i++) {
-    if ((code = XKeysymToKeycode(dpy, entr_key_action[i].key)))
-      for (j = 0; j < LENGTH(modifiers); j++)
+    if ((code = XKeysymToKeycode(dpy, entr_key_action[i].key))) {
+      for (j = 0; j < LENGTH(modifiers); j++) {
         XGrabKey(dpy, code, entr_key_action[i].mod | modifiers[j], root, True, GrabModeAsync, GrabModeAsync);
+      }
+    }
   }
 }
 
-void handle_event(XEvent ev, comb_key_action_t *keys, int len) {
+void
+handle_event(XEvent ev, comb_key_action_t *keys, int len) {
   // processing mod + key first
   for (int i = 0; i < len; i++) {
     if (keys[i].mod != NoSymbol && CLEANMASK(ev.xkey.state) == CLEANMASK(keys[i].mod) && (KeyCode)(ev.xkey.keycode) == XKeysymToKeycode(dpy, keys[i].key)) {
@@ -222,7 +228,6 @@ void handle_event(XEvent ev, comb_key_action_t *keys, int len) {
       return;
     }
   }
-
   // processing _ + key last
   for (int i = 0; i < len; i++) {
     if (keys[i].mod == NoSymbol && (KeyCode)(ev.xkey.keycode) == XKeysymToKeycode(dpy, keys[i].key)) {
@@ -232,17 +237,19 @@ void handle_event(XEvent ev, comb_key_action_t *keys, int len) {
   }
 }
 
-void quit(const arg_t *arg) {
+void
+quit(const arg_t *arg) {
   running = 0;
 }
 
-void restart(const arg_t *arg) {
+void
+restart(const arg_t *arg) {
   execvp(startup_argv[0], startup_argv);
 }
 
-void set_mode(const arg_t *arg) {
+void
+set_mode(const arg_t *arg) {
   mode = arg->ui;
-
   switch (mode) {
     case NORM_MODE:
       handler_of_norm() ; break;
@@ -255,7 +262,8 @@ void set_mode(const arg_t *arg) {
   }
 }
 
-void handler_of_norm() {
+void
+handler_of_norm() {
   arg_t empty_arg;
 
   XEvent ev;
@@ -277,16 +285,15 @@ void handler_of_norm() {
   XSelectInput(dpy, csrwin, KeyPressMask);
   XGrabKeyboard(dpy, csrwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   while (running && mode == NORM_MODE && !XNextEvent(dpy, &ev)) {
-    if (ev.xkey.type != KeyPress)
+    if (ev.xkey.type != KeyPress) {
       continue;
-
+    }
     handle_event(ev, norm_key_action, LENGTH(norm_key_action));
   }
-
   /* clean down cursor */
-  if (left_cursor_status == CURSOR_DOWN)
+  if (left_cursor_status == CURSOR_DOWN) {
     norm_toggle_select(&empty_arg);
-
+  }
   /* clean windows */
   XUnmapWindow(dpy, csrwin);
   XDestroyWindow(dpy, csrwin);
@@ -297,7 +304,8 @@ void handler_of_norm() {
   XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
 }
 
-void handler_of_hint() {
+void
+handler_of_hint() {
   char character;
   int depth;
   XEvent ev;
@@ -344,20 +352,16 @@ void handler_of_hint() {
         break;
       case KeyPress:
         handle_event(ev, hint_key_action, LENGTH(hint_key_action));
-
-        if (mode != HINT_MODE)
+        if (mode != HINT_MODE) {
           break;
-
+        }
         hint_redraw();
-
         character = keycode2character(ev.xkey.keycode);
-        if (!character)
+        if (!character) {
           continue;
-
+        }
         if (!hint_char_1) { hint_char_1 = character; } else if (!hint_char_2) { hint_char_2 = character; }
-
         hint_redraw();
-
         if (hint_char_1 && hint_char_2) {
           hint_position_t *hr;
           for (hr = hint_positions; hr; hr = hr->next) {
@@ -386,7 +390,8 @@ void handler_of_hint() {
   }
 }
 
-void handler_of_cover() {
+void
+handler_of_cover() {
   XEvent ev;
   XColor color;
   XSetWindowAttributes attr;
@@ -415,12 +420,12 @@ void handler_of_cover() {
   XSelectInput(dpy, coverwin, KeyPressMask);
   XGrabKeyboard(dpy, coverwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   while (running && mode == COVER_MODE && !XNextEvent(dpy, &ev)) {
-    if (ev.xkey.type != KeyPress)
+    if (ev.xkey.type != KeyPress) {
       continue;
-
-    if (coverwinsz.w < csr->w + 2 && coverwinsz.h < csr->h + 2)
+    }
+    if (coverwinsz.w < csr->w + 2 && coverwinsz.h < csr->h + 2) {
       break;
-
+    }
     handle_event(ev, cover_key_action, LENGTH(cover_key_action));
   }
 
@@ -437,7 +442,8 @@ void handler_of_cover() {
   }
 }
 
-void escape(const arg_t *arg) {
+void
+escape(const arg_t *arg) {
   switch (mode) {
     case NORM_MODE:
       mode = EMPTY_MODE; break;
@@ -450,7 +456,8 @@ void escape(const arg_t *arg) {
   };
 }
 
-void move_cursor(const arg_t *arg) {
+void
+move_cursor(const arg_t *arg) {
   switch (mode) {
     case NORM_MODE:
       move_of_norm(arg);  break;
@@ -463,11 +470,13 @@ void move_cursor(const arg_t *arg) {
   };
 }
 
-void move_cursor_fast(const arg_t *arg) {
+void
+move_cursor_fast(const arg_t *arg) {
   int x, y, offset;
   offset = 1;
-  if (mode != NORM_MODE)
+  if (mode != NORM_MODE) {
     return;
+  }
 
   x = po.x; y = po.y;
   switch (arg->ui) {
@@ -528,7 +537,8 @@ void move_cursor_fast(const arg_t *arg) {
 }
 
 
-void norm_toggle_select(const arg_t *arg) {
+void
+norm_toggle_select(const arg_t *arg) {
   int button = 1;
   if (left_cursor_status == CURSOR_UP) {
     cursor_show();
@@ -544,18 +554,21 @@ void norm_toggle_select(const arg_t *arg) {
   }
 }
 
-void norm_toggle_select_line(const arg_t *arg) {
+void
+norm_toggle_select_line(const arg_t *arg) {
   arg_t empty_arg, arg_new;
 
-  if (left_cursor_status == CURSOR_DOWN)
+  if (left_cursor_status == CURSOR_DOWN) {
     left_cursor_status = CURSOR_UP;
+  }
 
   arg_new.ui = N_B; move_cursor_fast(&arg_new);
   norm_toggle_select(&empty_arg);
   arg_new.ui = N_E; move_cursor_fast(&arg_new);
 }
 
-void cursor_scroll(const arg_t *arg)  {
+void
+cursor_scroll(const arg_t *arg)  {
   switch (arg->ui) {
     case UP:
       cursor_click(4); break;
@@ -570,7 +583,8 @@ void cursor_scroll(const arg_t *arg)  {
   }
 }
 
-void cursor_button_click(const arg_t *arg)  {
+void
+cursor_button_click(const arg_t *arg)  {
   switch (arg->ui) {
     case LEFT_BUT:
       cursor_click(1); break;
@@ -583,67 +597,67 @@ void cursor_button_click(const arg_t *arg)  {
   }
 }
 
-void hint_rollback(const arg_t *arg) {
-  if (!hint_char_2 && hint_char_1)
+void
+hint_rollback(const arg_t *arg) {
+  if (!hint_char_2 && hint_char_1) {
     hint_char_1 = '\0';
+  }
 }
 
-void hint_redraw() {
+void
+hint_redraw() {
   XClearWindow(dpy, hintwin);
   XMoveResizeWindow(dpy, hintwin, selmon->mx, selmon->my, selmon->mw, selmon->mh);
-
   hint_position_t *hr;
   for (hr = hint_positions; hr; hr = hr->next) {
     if ((!hint_char_1 && !hint_char_2) || (hint_char_1 && !hint_char_2 && hr->text[0] == hint_char_1) || (hint_char_1 && hint_char_2 && hr->text[0] == hint_char_1 && hr->text[1] == hint_char_2))
       XDrawString(dpy, hintwin, DefaultGC(dpy, screen), hr->x, hr->y, hr->text, strlen(hr->text));
   }
-
   XFlush(dpy);
 }
 
-void move_of_cover(const arg_t *arg) {
+void
+move_of_cover(const arg_t *arg) {
   switch (arg->ui) {
     case LEFT:
       coverwinsz.w /= 2;
       break;
     case DOWN:
       coverwinsz.h /= 2;
-      if (coverwinsz.h > csr->h)
+      if (coverwinsz.h > csr->h) {
         coverwinsz.y += coverwinsz.h;
+      }
       break;
     case UP:
       coverwinsz.h /= 2;
       break;
     case RIGHT:
       coverwinsz.w /= 2;
-      if (coverwinsz.w > csr->w)
+      if (coverwinsz.w > csr->w) {
         coverwinsz.x += coverwinsz.w;
+      }
       break;
     default:
       break;
   };
-
   coverwinsz.w = coverwinsz.w < csr->w ? csr->w : coverwinsz.w;
   coverwinsz.h = coverwinsz.h < csr->h ? csr->h : coverwinsz.h;
-
   cursor_position_update_absolute(coverwinsz.x + coverwinsz.w/2, coverwinsz.y + coverwinsz.h/2);
   XMoveResizeWindow(dpy, coverwin, coverwinsz.x, coverwinsz.y, coverwinsz.w, coverwinsz.h);
   XFlush(dpy);
 }
 
-void move_of_norm(const arg_t *arg) {
+void
+move_of_norm(const arg_t *arg) {
   csr->repeat_count++;
-
   long double rate = 1;
   long double duration = (double)(time(NULL) - csr->repeat_count_reset_time);
-
   if (duration * csr->rate_factor > 1) {
     rate = 1.0 * csr->repeat_count / duration;
     csr->repeat_count = 0;
     csr->repeat_count_reset_time = time(NULL);
     csr->speed = rate > csr->min_speed ? (int)rate : csr->min_speed;
   }
-
   switch (arg->ui) {
     case LEFT:
       cursor_position_update_relative(-csr->speed, 0); break;
@@ -656,23 +670,24 @@ void move_of_norm(const arg_t *arg) {
     default:
       break;
   };
-
   if (left_cursor_status == CURSOR_UP) {
     XMoveResizeWindow(dpy, csrwin, po.x, po.y, csr->w, csr->h);
     XFlush(dpy);
   }
 }
 
-char keycode2character(int keycode) {
+char
+keycode2character(int keycode) {
   for (int i = 0; i < LENGTH(keycodes); i++) {
-    if (keycodes[i].keycode == keycode)
+    if (keycodes[i].keycode == keycode) {
       return keycodes[i].character;
+    }
   }
-
   return '\0';
 }
 
-void clean_hint_positions() {
+void
+clean_hint_positions() {
   hint_position_t *m;
   while(hint_positions) {
     m = hint_positions;
@@ -681,10 +696,11 @@ void clean_hint_positions() {
   }
 }
 
-int update_hint_positions() {
+int
+update_hint_positions() {
   clean_hint_positions();
-
   int sz, w, h;
+
   sz = strlen(cfg.hint_letters.t.s);
 
   w = selmon->mw/sz;
@@ -719,11 +735,13 @@ int update_hint_positions() {
   return EXIT_SUCCESS;
 }
 
-void cover_update_coverwinsz(int x, int y, int w, int h) {
+void
+cover_update_coverwinsz(int x, int y, int w, int h) {
   coverwinsz.x = x; coverwinsz.y = y; coverwinsz.w = w; coverwinsz.h = h;
 }
 
-void get_cursor_position(int *x, int *y) {
+void
+get_cursor_position(int *x, int *y) {
   Window root_return, child_return;
   int root_x, root_y, win_x, win_y;
   unsigned int mask;
@@ -731,7 +749,8 @@ void get_cursor_position(int *x, int *y) {
   *x = root_x; *y = root_y;
 }
 
-void cursor_click(int button) {
+void
+cursor_click(int button) {
   get_cursor_position(&po.x, &po.y);
   cursor_show();
   XMoveResizeWindow(dpy, csrwin, selmon->ww, selmon->wh, csr->w, csr->h);
@@ -746,43 +765,54 @@ void cursor_click(int button) {
   XFlush(dpy);
 }
 
-void cursor_hide() {
-  if (csr->is_hidden) return;
+void
+cursor_hide() {
+  if (csr->is_hidden) {
+    return;
+  }
   XFixesHideCursor(dpy, root);
   XSync(dpy, False);
   csr->is_hidden = 1;
 }
 
-void cursor_show() {
-  if (!csr->is_hidden) return;
+void
+cursor_show() {
+  if (!csr->is_hidden) {
+    return;
+  }
   XFixesShowCursor(dpy, root);
   XSync(dpy, False);
   csr->is_hidden = 0;
 }
 
-void cursor_up(int button) {
+void
+cursor_up(int button) {
   left_cursor_status = CURSOR_UP;
   XTestFakeButtonEvent(dpy, button, False, 0);
   XFlush(dpy);
 }
 
-void cursor_down(int button) {
+void
+cursor_down(int button) {
   left_cursor_status = CURSOR_DOWN;
   XTestFakeButtonEvent(dpy, button, True, 0);
   XFlush(dpy);
 }
 
-void cursor_move_absolute(int x, int y) {
+void
+cursor_move_absolute(int x, int y) {
   XTestFakeMotionEvent(dpy, screen, x, y, 0);
   XFlush(dpy);
 }
 
-void cursor_move_relative(int x, int y) {
+void
+cursor_move_relative(int x, int y) {
   XTestFakeRelativeMotionEvent(dpy, x, y, 0);
   XFlush(dpy);
 }
 
-void cursor_position_update_absolute(int x, int y) {
+void
+cursor_position_update_absolute(int x, int y) {
   po.x = x; po.y = y;
 
   // make sure in screen: multiple monitors
@@ -797,7 +827,8 @@ void cursor_position_update_absolute(int x, int y) {
   cursor_move_absolute(po.x, po.y);
 }
 
-void cursor_position_update_relative(int delta_x, int delta_y) {
+void
+cursor_position_update_relative(int delta_x, int delta_y) {
   po.x += delta_x; po.y += delta_y;
 
   // make sure in screen: multiple monitors
@@ -812,44 +843,47 @@ void cursor_position_update_relative(int delta_x, int delta_y) {
   cursor_move_absolute(po.x, po.y);
 }
 
-monitor_t *monitor_create(void) {
+monitor_t*
+monitor_create(void) {
   monitor_t *m = ecalloc(1, sizeof(monitor_t));
   return m;
 }
 
-void monitor_cleanup(monitor_t *mon) {
+void
+monitor_cleanup(monitor_t *mon) {
   monitor_t *m;
 
   if (mon == mons) {
     mons = mons->next;
   } else {
-    for (m = mons; m && m->next != mon; m = m->next);
+    for (m = mons; m && m->next != mon; m = m->next)
+      ;
     m->next = mon->next;
   }
   free(mon);
 }
 
-void monitor_update(void) {
+void
+monitor_update(void) {
   if (XineramaIsActive(dpy)) {
     monitor_t *m;
     int i, c, n, rx, ry, wx, wy;
     unsigned int dummyuint;
     Window dummywin;
-
     XineramaScreenInfo *info = XineramaQueryScreens(dpy, &n);
-
     // get cached monitors num
-    for (c = 0, m = mons; m; m = m->next, c++);
-
+    for (c = 0, m = mons; m; m = m->next, c++)
+      ;
     //  allocate new monitors if n > c
     for (i = c; i < n; i++) {
-      for (m = mons; m && m->next; m = m->next);
-      if (m)
+      for (m = mons; m && m->next; m = m->next)
+        ;
+      if (m) {
         m->next = monitor_create();
-      else
+      } else {
         mons = monitor_create();
+      }
     }
-
     // update all monitors
     for (i = 0, m = mons; i < n && m; m = m->next, i++) {
       m->id = i;
@@ -858,90 +892,102 @@ void monitor_update(void) {
       m->mw = m->ww = info[i].width;
       m->mh = m->wh = info[i].height;
     }
-
     // remove monitors if c > n
     for (i = n; i < c; i++) {
-      for (m = mons; m && m->next; m = m->next);
-      if (m == selmon)
+      for (m = mons; m && m->next; m = m->next)
+        ;
+      if (m == selmon) {
         selmon = mons;
+      }
       monitor_cleanup(m);
     }
-
     // find selected monitor
     XQueryPointer(dpy, root, &dummywin, &dummywin, &rx, &ry, &wx, &wy, &dummyuint);
-    for(i=0, m=mons; i < n && m; m = m->next, i++)
-      if (wx >= m->mx && wx <= m->wx + m->ww && wy >= m->my && wy <= m->my + m->mh)
+    for(i=0, m=mons; i < n && m; m = m->next, i++) {
+      if (wx >= m->mx && wx <= m->wx + m->ww && wy >= m->my && wy <= m->my + m->mh) {
         selmon = m;
-
+      }
+    }
     XFree(info);
   } else {
-    if (!mons)
-      mons = monitor_create();
-
+    if (!mons) { mons = monitor_create(); }
     if (mons->mw != sw || mons->mh != sh) {
       mons->mw = mons->ww = sw;
       mons->mh = mons->wh = sh;
     }
     selmon = mons;
   }
-
-  if (!selmon)
+  if (!selmon) {
     selmon = mons;
+  }
 }
 
-void update_selmon() {
+void
+update_selmon() {
   monitor_t *m;
   int i, n, rx, ry, wx, wy;
   unsigned int dummyuint;
   Window dummywin;
-
   XineramaQueryScreens(dpy, &n);
   XQueryPointer(dpy, root, &dummywin, &dummywin, &rx, &ry, &wx, &wy, &dummyuint);
   for(i=0, m=mons; i < n && m; m = m->next, i++) {
-    if (wx >= m->mx && wx <= m->wx + m->ww && wy >= m->my && wy <= m->my + m->mh)
+    if (wx >= m->mx && wx <= m->wx + m->ww && wy >= m->my && wy <= m->my + m->mh) {
       selmon = m;
+    }
   }
 }
 
-void setup(void) {
-  if (init_cfg())      exit(cleanup(1));
-  if (init_keys())     exit(cleanup(1));
-  if (init_monitors()) exit(cleanup(1));
-  if (init_cursor())   exit(cleanup(1));
-
+void
+setup(void) {
+  if (init_cfg())      {
+    exit(cleanup(1));
+  }
+  if (init_keys()) {
+    exit(cleanup(1));
+  }
+  if (init_monitors()) {
+    exit(cleanup(1));
+  }
+  if (init_cursor()) {
+    exit(cleanup(1));
+  }
   // TODO: < 10:44:04 2022-09-28 -- Author: Lorenzo >: move to init check
   // test font is ok before jump into set
   XFontStruct* fontinfo = XLoadQueryFont(dpy, cfg.font.t.s);
-  if (!fontinfo) exit(cleanup(1));
-
-  if (!strlen(cfg.hint_letters.t.s)) exit(cleanup(1));
+  if (!fontinfo) {
+    exit(cleanup(1));
+  }
+  if (!strlen(cfg.hint_letters.t.s)) {
+    exit( cleanup(1) );
+  }
 }
 
-int run(void (*setup)(void)) {
+int
+run(void (*setup)(void)) {
   setup();
-
   XEvent ev;
   grab_mode_keys();
   while (running && !XNextEvent(dpy, &ev)) {
     handle_event(ev, entr_key_action, LENGTH(entr_key_action));
     usleep(100);
   }
-
   return EXIT_SUCCESS;
 }
 
-int cleanup(int dummy) {
+int
+cleanup(int dummy) {
   XCloseDisplay(dpy);
   XDestroyWindow(dpy, csrwin);
   XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
   XSync(dpy, False);
-  while (mons) monitor_cleanup(mons);
+  while (mons) { monitor_cleanup(mons); }
   free(csr);
   clean_hint_positions();
   return EXIT_SUCCESS;
 }
 
-int help(void) {
+int
+help(void) {
   char *helpstr = "\
   hhkb [-hvf]\n\
   \n\
@@ -954,23 +1000,23 @@ int help(void) {
   return EXIT_SUCCESS;
 }
 
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv) {
   int run_in_daemon = 1;
-
   startup_argv = argv;
   if (argc == 2) {
-    if (!strcmp("-h", argv[1]))
+    if (!strcmp("-h", argv[1])) {
       exit(help());
-    else if (!strcmp("-v", argv[1]))
+    } else if (!strcmp("-v", argv[1])) {
       exit(puts("hhkb-" VERSION));
-    else if (!strcmp("-f", argv[1]))
+    } else if (!strcmp("-f", argv[1])) {
       run_in_daemon = 0;
-    else
+    } else {
       exit(puts("usage: hhkb [-hvf]"));
+    }
   }
-
-  if (run_in_daemon)
+  if (run_in_daemon) {
     daemon(0,0);
-
+  }
   exit(cleanup(run(setup)));
 }

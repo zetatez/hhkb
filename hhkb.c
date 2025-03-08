@@ -1008,11 +1008,11 @@ main(int argc, char **argv) {
     if (!strcmp("-h", argv[1])) {
       exit(help());
     } else if (!strcmp("-v", argv[1])) {
-      exit(puts("hhkb-" VERSION));
+      exit(puts("hhkb " VERSION));
     } else if (!strcmp("-f", argv[1])) {
       run_in_daemon = 0;
     } else {
-      exit(puts("usage: hhkb [-hvf]"));
+      exit(help());
     }
   }
   if (run_in_daemon) {

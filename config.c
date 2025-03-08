@@ -187,12 +187,6 @@ cfg_source_config_file(void) {
     if (sprintf(file, "%s/hhkb/hhkbrc", xdg_config_home) >= 0) {
       cfg_load_and_parse_config_file(file);
     }
-  } else {
-    if (home_dir) {
-      if (sprintf(file, "%s/.config/hhkb/hhkbrc", home_dir) >= 0) {
-        cfg_load_and_parse_config_file(file);
-      }
-    }
   }
 
   free(file);

@@ -16,7 +16,7 @@ sudo make clean install
 
 ## Configuration
 
-See [*hhkbrc*](https://github.com/zetatez/hhkb/blob/master/hhkbrc). You can put it to `/etc/hhkbrc`, `~/.hhkbrc` or `~/.config/hhkb/hhkbrc` anywhere you want.
+See [*config.c*](https://github.com/zetatez/hhkb/blob/master/config.c).
 
 ## Usage
 

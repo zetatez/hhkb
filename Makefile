@@ -39,7 +39,6 @@ install: all
 	cat hhkb.1 | gzip > hhkb.1.gz
 	install -m644 hhkb.1.gz ${DESTDIR}${MANPREFIX}/man1/
 	mkdir -p ~/.config/hhkb
-	cp -f hhkbrc ~/.config/hhkb/
 
 uninstall:
 	rm -f ${DESTDIR}${PREFIX}/bin/hhkb\

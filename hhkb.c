@@ -161,12 +161,18 @@ int
 init_monitors(void) {
   dpy = XOpenDisplay(NULL);
   if (!dpy) {
+    fprintf(stderr, "init_monitors: cannot open display\n");
     return EXIT_FAILURE;
   }
   screen = DefaultScreen(dpy);
   root = XRootWindow(dpy, screen);
   sw = DisplayWidth(dpy, screen);
   sh = DisplayHeight(dpy, screen);
+
+  mons = NULL;
+  selmon = NULL;
+
+  /* 初始化 monitors 列表 */
   monitor_update();
   return EXIT_SUCCESS;
 }
@@ -262,10 +268,20 @@ set_mode(const arg_t *arg) {
   }
 }
 
+/* helper: wait for X event but not block forever — 用于所有 handler_of_* */
+static int wait_for_event(XEvent *ev, int timeout_us) {
+  if (!dpy) return 0;
+  if (XPending(dpy)) {
+    XNextEvent(dpy, ev);
+    return 1;
+  }
+  if (timeout_us > 0) usleep(timeout_us);
+  return 0;
+}
+
 void
 handler_of_norm() {
   arg_t empty_arg;
-
   XEvent ev;
   XColor color;
   XSetWindowAttributes attr;
@@ -274,29 +290,52 @@ handler_of_norm() {
   get_cursor_position(&po.x, &po.y);
   cursor_hide();
 
-  colormap = DefaultColormap(dpy, screen); XParseColor(dpy, colormap, csr->bg_color, &color); XAllocColor(dpy, colormap, &color);
+  colormap = DefaultColormap(dpy, screen);
+  if (!XParseColor(dpy, colormap, csr->bg_color, &color) || !XAllocColor(dpy, colormap, &color)) {
+    /* 解析或分配颜色失败，使用黑色作为后备 */
+    color.pixel = BlackPixel(dpy, screen);
+  }
+
   attr.background_pixel = color.pixel;
   attr.override_redirect = True;
 
-  csrwin = XCreateWindow(dpy, root, po.x, po.y, csr->w, csr->h, 0, DefaultDepth(dpy, screen),  InputOutput, DefaultVisual(dpy, screen), CWBackPixel|CWOverrideRedirect, &attr);
+  /* 创建光标窗口 */
+  csrwin = XCreateWindow(dpy, root, po.x, po.y, csr->w, csr->h, 0,
+                         DefaultDepth(dpy, screen), InputOutput,
+                         DefaultVisual(dpy, screen),
+                         CWBackPixel|CWOverrideRedirect, &attr);
+  if (!csrwin) {
+    fprintf(stderr, "handler_of_norm: XCreateWindow failed\n");
+    cursor_show();
+    return;
+  }
   XMapWindow(dpy, csrwin);
   XSync(dpy, False);
 
   XSelectInput(dpy, csrwin, KeyPressMask);
-  XGrabKeyboard(dpy, csrwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-  while (running && mode == NORM_MODE && !XNextEvent(dpy, &ev)) {
-    if (ev.xkey.type != KeyPress) {
-      continue;
-    }
-    handle_event(ev, norm_key_action, LENGTH(norm_key_action));
+
+  /* 尝试抓键盘（失败也可继续，但要警告） */
+  if (XGrabKeyboard(dpy, csrwin, True, GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess) {
+    fprintf(stderr, "handler_of_norm: warning: XGrabKeyboard failed\n");
   }
-  /* clean down cursor */
+
+  /* 事件循环：不再使用 !XNextEvent(...) 的错误写法 */
+  while (running && mode == NORM_MODE) {
+    if (!wait_for_event(&ev, 5000)) continue; /* 5ms sleep when no event */
+    if (ev.type != KeyPress) continue;
+    handle_event(ev, norm_key_action, (int)LENGTH(norm_key_action));
+  }
+
+  /* 清理：若 left button 仍处于 down */
   if (left_cursor_status == CURSOR_DOWN) {
     norm_toggle_select(&empty_arg);
   }
-  /* clean windows */
+
+  /* 清理窗口与键盘抓取 */
+  XUngrabKeyboard(dpy, CurrentTime);
   XUnmapWindow(dpy, csrwin);
   XDestroyWindow(dpy, csrwin);
+  csrwin = 0;
   XFlush(dpy);
 
   cursor_position_update_absolute(po.x, po.y);
@@ -307,61 +346,92 @@ handler_of_norm() {
 void
 handler_of_hint() {
   char character;
-  int depth;
   XEvent ev;
   XSetWindowAttributes attr;
   Visual *visual;
-  XFontStruct* fontinfo;
+  XFontStruct* fontinfo = NULL;
   arg_t empty_arg;
   XColor color;
   Colormap colormap;
 
-  update_hint_positions();
+  if (!selmon) {
+    update_selmon();
+    if (!selmon) return;
+  }
+
+  if (update_hint_positions() != EXIT_SUCCESS) {
+    /* 没有可用 hint 字母 */
+    return;
+  }
 
   get_cursor_position(&po.x, &po.y);
   cursor_hide();
 
   visual = XDefaultVisual(dpy, screen);
-  depth = XDefaultDepth(dpy, screen);
+  int depth = XDefaultDepth(dpy, screen);
 
-  colormap = DefaultColormap(dpy, screen); XParseColor(dpy, colormap, cfg.hint_bg_color.t.s, &color); XAllocColor(dpy, colormap, &color);
+  colormap = DefaultColormap(dpy, screen);
+  if (!XParseColor(dpy, colormap, cfg.hint_bg_color.t.s, &color) || !XAllocColor(dpy, colormap, &color)) {
+    color.pixel = BlackPixel(dpy, screen);
+  }
+
   attr.border_pixel = BlackPixel(dpy, screen);
   attr.background_pixel = color.pixel;
   attr.override_redirect = True;
-  attr.event_mask = ExposureMask;
+  attr.event_mask = ExposureMask | KeyPressMask;
 
-  /* hintwin = XCreateWindow(dpy, root, 0, 0, selmon->mw, selmon->mh, 0, depth, InputOutput, visual, CWColormap|CWBorderPixel|CWBackPixel|CWOverrideRedirect|CWEventMask, &attr); */
-  hintwin = XCreateWindow(dpy, root, 0, 0, selmon->mw, selmon->mh, 0, depth, InputOutput, visual, CWBorderPixel|CWBackPixel|CWOverrideRedirect|CWEventMask, &attr);
+  hintwin = XCreateWindow(dpy, root, selmon->mx, selmon->my, selmon->mw, selmon->mh,
+                          0, depth, InputOutput, visual,
+                          CWBorderPixel|CWBackPixel|CWOverrideRedirect|CWEventMask, &attr);
+  if (!hintwin) {
+    cursor_show();
+    return;
+  }
 
-  unsigned long opacity = (unsigned long)(0xFFFFFFFFul * (1 - cfg.hint_window_transparency.t.d));
-  Atom XA_NET_WM_WINDOW_OPACITY = XInternAtom(dpy, "_NET_WM_WINDOW_OPACITY", False);
-  XChangeProperty(dpy, hintwin, XA_NET_WM_WINDOW_OPACITY, XA_CARDINAL, 32, PropModeReplace, (unsigned char *)&opacity, 1L);
+  /* 透明度属性 */
+  {
+    unsigned long opacity = (unsigned long)(0xFFFFFFFFul * (1 - cfg.hint_window_transparency.t.d));
+    Atom XA_NET_WM_WINDOW_OPACITY = XInternAtom(dpy, "_NET_WM_WINDOW_OPACITY", False);
+    XChangeProperty(dpy, hintwin, XA_NET_WM_WINDOW_OPACITY, XA_CARDINAL, 32,
+                    PropModeReplace, (unsigned char *)&opacity, 1L);
+  }
 
   fontinfo = XLoadQueryFont(dpy, cfg.font.t.s);
-  XSetFont(dpy, DefaultGC(dpy, screen), fontinfo->fid);
+  if (fontinfo) {
+    XSetFont(dpy, DefaultGC(dpy, screen), fontinfo->fid);
+  } else {
+    fprintf(stderr, "handler_of_hint: warning: font %s not loaded\n", cfg.font.t.s);
+  }
 
   XMapWindow(dpy, hintwin);
   XSync(dpy, False);
 
-  XSelectInput(dpy, hintwin, KeyPressMask|ExposureMask);
-  XGrabKeyboard(dpy, hintwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-  while (running && mode == HINT_MODE && !XNextEvent(dpy, &ev)) {
-    switch(ev.type) {
+  if (XGrabKeyboard(dpy, hintwin, True, GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess) {
+    fprintf(stderr, "handler_of_hint: warning: XGrabKeyboard failed\n");
+  }
+
+  while (running && mode == HINT_MODE) {
+    if (!wait_for_event(&ev, 5000)) continue;
+
+    switch (ev.type) {
       case Expose:
         hint_redraw();
         break;
       case KeyPress:
-        handle_event(ev, hint_key_action, LENGTH(hint_key_action));
-        if (mode != HINT_MODE) {
-          break;
-        }
+        handle_event(ev, hint_key_action, (int)LENGTH(hint_key_action));
+        if (mode != HINT_MODE) break;
         hint_redraw();
+
         character = keycode2character(ev.xkey.keycode);
-        if (!character) {
-          continue;
+        if (!character) continue;
+
+        if (!hint_char_1) {
+          hint_char_1 = character;
+        } else if (!hint_char_2) {
+          hint_char_2 = character;
         }
-        if (!hint_char_1) { hint_char_1 = character; } else if (!hint_char_2) { hint_char_2 = character; }
         hint_redraw();
+
         if (hint_char_1 && hint_char_2) {
           hint_position_t *hr;
           for (hr = hint_positions; hr; hr = hr->next) {
@@ -379,8 +449,13 @@ handler_of_hint() {
   }
 
   hint_char_1 = '\0'; hint_char_2 = '\0';
+
+  XUngrabKeyboard(dpy, CurrentTime);
   XUnmapWindow(dpy, hintwin);
   XDestroyWindow(dpy, hintwin);
+  hintwin = 0;
+
+  if (fontinfo) XFreeFont(dpy, fontinfo);
 
   cursor_show();
   XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
@@ -397,41 +472,65 @@ handler_of_cover() {
   XSetWindowAttributes attr;
   Colormap colormap;
 
+  if (!selmon) {
+    update_selmon();
+    if (!selmon) return;
+  }
+
   get_cursor_position(&po.x, &po.y);
   cursor_hide();
 
-  colormap = DefaultColormap(dpy, screen); XParseColor(dpy, colormap, cfg.cover_bg_color.t.s, &color); XAllocColor(dpy, colormap, &color);
+  colormap = DefaultColormap(dpy, screen);
+  if (!XParseColor(dpy, colormap, cfg.cover_bg_color.t.s, &color) || !XAllocColor(dpy, colormap, &color)) {
+    color.pixel = BlackPixel(dpy, screen);
+  }
+
   attr.border_pixel = BlackPixel(dpy, screen);
   attr.background_pixel = color.pixel;
   attr.override_redirect = True;
 
-  coverwin = XCreateWindow(dpy, root, selmon->wx, selmon->wy, selmon->ww, selmon->wh, 0, DefaultDepth(dpy, screen), InputOutput, DefaultVisual(dpy, screen), CWBorderPixel|CWBackPixel|CWOverrideRedirect, &attr);
+  coverwin = XCreateWindow(dpy, root, selmon->wx, selmon->wy, selmon->ww, selmon->wh,
+                           0, DefaultDepth(dpy, screen), InputOutput, DefaultVisual(dpy, screen),
+                           CWBorderPixel|CWBackPixel|CWOverrideRedirect, &attr);
+  if (!coverwin) {
+    cursor_show();
+    return;
+  }
 
   cover_update_coverwinsz(selmon->mx, selmon->my, selmon->ww, selmon->wh);
   cursor_position_update_absolute(selmon->mx + selmon->ww/2, selmon->my + selmon->mh/2);
 
-  unsigned long opacity = (unsigned long)(0xFFFFFFFFul * (1 - cfg.cover_window_transparency.t.d));
-  Atom XA_NET_WM_WINDOW_OPACITY = XInternAtom(dpy, "_NET_WM_WINDOW_OPACITY", False);
-  XChangeProperty(dpy, coverwin, XA_NET_WM_WINDOW_OPACITY, XA_CARDINAL, 32, PropModeReplace, (unsigned char *)&opacity, 1L);
+  {
+    unsigned long opacity = (unsigned long)(0xFFFFFFFFul * (1 - cfg.cover_window_transparency.t.d));
+    Atom XA_NET_WM_WINDOW_OPACITY = XInternAtom(dpy, "_NET_WM_WINDOW_OPACITY", False);
+    XChangeProperty(dpy, coverwin, XA_NET_WM_WINDOW_OPACITY, XA_CARDINAL, 32,
+                    PropModeReplace, (unsigned char *)&opacity, 1L);
+  }
 
   XMapWindow(dpy, coverwin);
   XSync(dpy, False);
 
   XSelectInput(dpy, coverwin, KeyPressMask);
-  XGrabKeyboard(dpy, coverwin, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-  while (running && mode == COVER_MODE && !XNextEvent(dpy, &ev)) {
-    if (ev.xkey.type != KeyPress) {
-      continue;
-    }
+
+  if (XGrabKeyboard(dpy, coverwin, True, GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess) {
+    fprintf(stderr, "handler_of_cover: warning: XGrabKeyboard failed\n");
+  }
+
+  while (running && mode == COVER_MODE) {
+    if (!wait_for_event(&ev, 5000)) continue;
+    if (ev.type != KeyPress) continue;
+
+    /* 如果 cover 窗口太小则退出 */
     if (coverwinsz.w < csr->w + 2 && coverwinsz.h < csr->h + 2) {
       break;
     }
-    handle_event(ev, cover_key_action, LENGTH(cover_key_action));
+    handle_event(ev, cover_key_action, (int)LENGTH(cover_key_action));
   }
 
-  /* clean windows */
+  XUngrabKeyboard(dpy, CurrentTime);
   XUnmapWindow(dpy, coverwin);
   XDestroyWindow(dpy, coverwin);
+  coverwin = 0;
   XFlush(dpy);
 
   cursor_show();
@@ -865,76 +964,111 @@ monitor_cleanup(monitor_t *mon) {
 
 void
 monitor_update(void) {
+  /* 更新 mons 链表，正确处理 XineramaQueryScreens 返回的内存 */
+  if (!dpy) return;
+
   if (XineramaIsActive(dpy)) {
-    monitor_t *m;
-    int i, c, n, rx, ry, wx, wy;
-    unsigned int dummyuint;
-    Window dummywin;
+    int n = 0;
     XineramaScreenInfo *info = XineramaQueryScreens(dpy, &n);
-    // get cached monitors num
-    for (c = 0, m = mons; m; m = m->next, c++)
-      ;
-    //  allocate new monitors if n > c
-    for (i = c; i < n; i++) {
-      for (m = mons; m && m->next; m = m->next)
-        ;
-      if (m) {
-        m->next = monitor_create();
+    if (!info || n <= 0) {
+      /* 退化为单显示器 */
+      if (info) XFree(info);
+      if (!mons) mons = monitor_create();
+      mons->mx = mons->wx = 0;
+      mons->my = mons->wy = 0;
+      mons->mw = mons->ww = sw;
+      mons->mh = mons->wh = sh;
+      selmon = mons;
+      return;
+    }
+
+    /* 确保链表长度至少为 n */
+    int c = 0;
+    monitor_t *m;
+    for (m = mons; m; m = m->next) c++;
+    for (int i = c; i < n; i++) {
+      monitor_t *t;
+      if (mons) {
+        for (t = mons; t->next; t = t->next);
+        t->next = monitor_create();
       } else {
         mons = monitor_create();
       }
     }
-    // update all monitors
-    for (i = 0, m = mons; i < n && m; m = m->next, i++) {
+
+    /* 填充每个 monitor */
+    m = mons;
+    for (int i = 0; i < n && m; i++, m = m->next) {
       m->id = i;
       m->mx = m->wx = info[i].x_org;
       m->my = m->wy = info[i].y_org;
       m->mw = m->ww = info[i].width;
       m->mh = m->wh = info[i].height;
     }
-    // remove monitors if c > n
-    for (i = n; i < c; i++) {
-      for (m = mons; m && m->next; m = m->next)
-        ;
-      if (m == selmon) {
-        selmon = mons;
-      }
-      monitor_cleanup(m);
-    }
-    // find selected monitor
-    XQueryPointer(dpy, root, &dummywin, &dummywin, &rx, &ry, &wx, &wy, &dummyuint);
-    for(i=0, m=mons; i < n && m; m = m->next, i++) {
-      if (wx >= m->mx && wx <= m->wx + m->ww && wy >= m->my && wy <= m->my + m->mh) {
-        selmon = m;
+
+    /* 删除多余的 monitors（若链表比 info 多） */
+    if (c > n) {
+      for (int i = n; i < c; i++) {
+        monitor_t *prev = NULL;
+        for (m = mons; m && m->next; m = m->next) prev = m;
+        if (m) {
+          if (m == selmon) selmon = mons;
+          monitor_cleanup(m);
+          if (prev) prev->next = NULL;
+        }
       }
     }
+
+    /* 根据指针位置选中 monitor */
+    {
+      Window rw, cw;
+      int root_x, root_y, win_x, win_y;
+      unsigned int mask;
+      if (XQueryPointer(dpy, root, &rw, &cw, &root_x, &root_y, &win_x, &win_y, &mask)) {
+        for (m = mons; m; m = m->next) {
+          if (root_x >= m->mx && root_x < m->mx + m->mw && root_y >= m->my && root_y < m->my + m->mh) {
+            selmon = m;
+            break;
+          }
+        }
+      }
+    }
+
     XFree(info);
   } else {
-    if (!mons) { mons = monitor_create(); }
-    if (mons->mw != sw || mons->mh != sh) {
-      mons->mw = mons->ww = sw;
-      mons->mh = mons->wh = sh;
-    }
+    /* 单显示器退化 */
+    if (!mons) mons = monitor_create();
+    mons->mx = mons->wx = 0;
+    mons->my = mons->wy = 0;
+    mons->mw = mons->ww = sw;
+    mons->mh = mons->wh = sh;
     selmon = mons;
   }
-  if (!selmon) {
-    selmon = mons;
-  }
+
+  if (!selmon) selmon = mons;
 }
 
 void
 update_selmon() {
+  /* 以鼠标当前位置更新 selmon，避免重复调用 XineramaQueryScreens */
+  if (!dpy || !mons) return;
+
+  Window rw, cw;
+  int root_x, root_y, win_x, win_y;
+  unsigned int mask;
+  if (!XQueryPointer(dpy, root, &rw, &cw, &root_x, &root_y, &win_x, &win_y, &mask)) {
+    return;
+  }
+
   monitor_t *m;
-  int i, n, rx, ry, wx, wy;
-  unsigned int dummyuint;
-  Window dummywin;
-  XineramaQueryScreens(dpy, &n);
-  XQueryPointer(dpy, root, &dummywin, &dummywin, &rx, &ry, &wx, &wy, &dummyuint);
-  for(i=0, m=mons; i < n && m; m = m->next, i++) {
-    if (wx >= m->mx && wx <= m->wx + m->ww && wy >= m->my && wy <= m->my + m->mh) {
+  for (m = mons; m; m = m->next) {
+    if (root_x >= m->mx && root_x < m->mx + m->mw && root_y >= m->my && root_y < m->my + m->mh) {
       selmon = m;
+      return;
     }
   }
+  /* 若未找到，保留原 selmon（或设为首） */
+  if (!selmon) selmon = mons;
 }
 
 void
@@ -963,25 +1097,51 @@ setup(void) {
 }
 
 int
-run(void (*setup)(void)) {
-  setup();
+run(void (*setup_func)(void)) {
+  setup_func();
   XEvent ev;
+
+  /* 先抓热键以响应进入模式的按键 */
   grab_mode_keys();
-  while (running && !XNextEvent(dpy, &ev)) {
-    handle_event(ev, entr_key_action, LENGTH(entr_key_action));
-    usleep(100);
+
+  /* 主循环：处理入口键（entr_key_action） */
+  while (running) {
+    /* 等待事件但不永远阻塞，保证 running 可响应 */
+    if (!wait_for_event(&ev, 5000)) {
+      /* 没有事件，继续检查 running */
+      continue;
+    }
+    /* 仅处理 KeyPress（entr_key_action） */
+    if (ev.type == KeyPress) {
+      handle_event(ev, entr_key_action, (int)LENGTH(entr_key_action));
+    }
+    usleep(100); /* 稍微降低 CPU 占用 */
   }
   return EXIT_SUCCESS;
 }
 
 int
 cleanup(int dummy) {
-  XCloseDisplay(dpy);
-  XDestroyWindow(dpy, csrwin);
-  XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
-  XSync(dpy, False);
-  while (mons) { monitor_cleanup(mons); }
-  free(csr);
+  /* 安全关闭所有资源 */
+  if (dpy) {
+    /* 只销毁存在的窗口 */
+    if (csrwin) { XUnmapWindow(dpy, csrwin); XDestroyWindow(dpy, csrwin); csrwin = 0; }
+    if (hintwin) { XUnmapWindow(dpy, hintwin); XDestroyWindow(dpy, hintwin); hintwin = 0; }
+    if (coverwin) { XUnmapWindow(dpy, coverwin); XDestroyWindow(dpy, coverwin); coverwin = 0; }
+
+    XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
+    XFlush(dpy);
+    XCloseDisplay(dpy);
+    dpy = NULL;
+  }
+
+  while (mons) {
+    monitor_cleanup(mons);
+  }
+  if (csr) {
+    free(csr);
+    csr = NULL;
+  }
   clean_hint_positions();
   return EXIT_SUCCESS;
 }

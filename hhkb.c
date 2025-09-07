@@ -1152,9 +1152,9 @@ help(void) {
 hhkb [-hvf]\n\
 \n\
 args: \n\
-  -h: show help\n\
-  -v: show version\n\
-  -f: run in foreground\n\
+-h: show help\n\
+-v: show version\n\
+-f: run in foreground\n\
 ";
   puts(helpstr);
   return EXIT_SUCCESS;

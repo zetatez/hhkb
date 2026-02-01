@@ -23,6 +23,7 @@ static cursor_t *csr;
 static position_t po;
 static hint_position_t *hint_positions;
 static int shape_available = -1;
+static GC crossgc = 0;
 
 static cursor_status_t left_cursor_status = CURSOR_UP;
 /* static cursor_status_t middle_cursor_status = CURSOR_UP; */
@@ -79,6 +80,7 @@ void clean_hint_positions();
 int  update_hint_positions();
 void cross_update_crosswinsz(int x, int y, int w, int h);
 void cross_update_shape();
+void cross_draw_crosshair();
 
 void get_cursor_position(int *x, int *y);
 void cursor_click(int button);
@@ -515,6 +517,11 @@ handler_of_cross() {
     return;
   }
 
+  crossgc = XCreateGC(dpy, crosswin, 0, NULL);
+  if (crossgc) {
+    XSetForeground(dpy, crossgc, BlackPixel(dpy, screen));
+  }
+
   cross_update_crosswinsz(selmon->mx, selmon->my, selmon->ww, selmon->wh);
   cursor_position_update_absolute(selmon->mx + selmon->ww/2, selmon->my + selmon->mh/2);
 
@@ -535,6 +542,7 @@ handler_of_cross() {
     }
   }
   cross_update_shape();
+  cross_draw_crosshair();
 
   XSelectInput(dpy, crosswin, KeyPressMask);
 
@@ -554,6 +562,10 @@ handler_of_cross() {
   }
 
   XUngrabKeyboard(dpy, CurrentTime);
+  if (crossgc) {
+    XFreeGC(dpy, crossgc);
+    crossgc = 0;
+  }
   XUnmapWindow(dpy, crosswin);
   XDestroyWindow(dpy, crosswin);
   crosswin = 0;
@@ -770,6 +782,7 @@ move_of_cross(const arg_t *arg) {
   cursor_position_update_absolute(crosswinsz.x + crosswinsz.w/2, crosswinsz.y + crosswinsz.h/2);
   XMoveResizeWindow(dpy, crosswin, crosswinsz.x, crosswinsz.y, crosswinsz.w, crosswinsz.h);
   cross_update_shape();
+  cross_draw_crosshair();
   XFlush(dpy);
 }
 
@@ -874,6 +887,20 @@ cross_update_shape() {
   if (shape_available == 0) {
     return;
   }
+  XRectangle rect;
+  rect.x = 0;
+  rect.y = 0;
+  rect.width = crosswinsz.w;
+  rect.height = crosswinsz.h;
+
+  XShapeCombineRectangles(dpy, crosswin, ShapeBounding, 0, 0, &rect, 1, ShapeSet, Unsorted);
+}
+
+void
+cross_draw_crosshair() {
+  if (!crosswin || !crossgc) {
+    return;
+  }
 
   int thickness = MIN(csr->w, csr->h);
   int max_thickness = MIN(crosswinsz.w, crosswinsz.h);
@@ -889,17 +916,10 @@ cross_update_shape() {
 
   int v_x = crosswinsz.w / 2 - thickness / 2;
   int h_y = crosswinsz.h / 2 - thickness / 2;
-  XRectangle rects[2];
-  rects[0].x = v_x;
-  rects[0].y = 0;
-  rects[0].width = thickness;
-  rects[0].height = crosswinsz.h;
-  rects[1].x = 0;
-  rects[1].y = h_y;
-  rects[1].width = crosswinsz.w;
-  rects[1].height = thickness;
 
-  XShapeCombineRectangles(dpy, crosswin, ShapeBounding, 0, 0, rects, 2, ShapeSet, Unsorted);
+  XClearWindow(dpy, crosswin);
+  XFillRectangle(dpy, crosswin, crossgc, v_x, 0, thickness, crosswinsz.h);
+  XFillRectangle(dpy, crosswin, crossgc, 0, h_y, crosswinsz.w, thickness);
 }
 
 void

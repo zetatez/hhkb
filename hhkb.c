@@ -17,11 +17,12 @@ static unsigned int numlockmask = 0;
 static Display *dpy;
 static int screen, sw, sh;
 static monitor_t *mons, *selmon;
-static Window root, csrwin, hintwin, coverwin;
-static win_t coverwinsz;
+static Window root, csrwin, hintwin, crosswin;
+static win_t crosswinsz;
 static cursor_t *csr;
 static position_t po;
 static hint_position_t *hint_positions;
+static int shape_available = -1;
 
 static cursor_status_t left_cursor_status = CURSOR_UP;
 /* static cursor_status_t middle_cursor_status = CURSOR_UP; */
@@ -33,7 +34,7 @@ static char hint_char_2 = '\0';
 comb_key_action_t entr_key_action[5];
 comb_key_action_t norm_key_action[25];
 comb_key_action_t hint_key_action[2];
-comb_key_action_t cover_key_action[5];
+comb_key_action_t cross_key_action[5];
 
 // xmodmap -pke
 static keycode_t keycodes[] = {
@@ -58,7 +59,7 @@ void set_mode(const arg_t *arg);
 
 void handler_of_norm();
 void handler_of_hint();
-void handler_of_cover();
+void handler_of_cross();
 
 void escape(const arg_t *arg);
 void move_cursor(const arg_t *arg);
@@ -70,13 +71,14 @@ void cursor_button_click(const arg_t *arg);
 void hint_rollback(const arg_t *arg);
 void hint_redraw();
 
-void move_of_cover(const arg_t *arg);
+void move_of_cross(const arg_t *arg);
 void move_of_norm(const arg_t *arg);
 
 char keycode2character(int keycode);
 void clean_hint_positions();
 int  update_hint_positions();
-void cover_update_coverwinsz(int x, int y, int w, int h);
+void cross_update_crosswinsz(int x, int y, int w, int h);
+void cross_update_shape();
 
 void get_cursor_position(int *x, int *y);
 void cursor_click(int button);
@@ -106,7 +108,7 @@ init_keys(void) {
     { cfg.restart.t.k.mod                         , cfg.restart.t.k.key                         , 0, restart                 , { 0                }}  ,
     { cfg.set_to_norm_mode.t.k.mod                , cfg.set_to_norm_mode.t.k.key                , 0, set_mode                , { .ui = NORM_MODE  }}  ,
     { cfg.set_to_hint_mode.t.k.mod                , cfg.set_to_hint_mode.t.k.key                , 0, set_mode                , { .ui = HINT_MODE  }}  ,
-    { cfg.set_to_cover_mode.t.k.mod               , cfg.set_to_cover_mode.t.k.key               , 0, set_mode                , { .ui = COVER_MODE }}  ,
+    { cfg.set_to_cross_mode.t.k.mod               , cfg.set_to_cross_mode.t.k.key               , 0, set_mode                , { .ui = CROSS_MODE }}  ,
   };
 
   comb_key_action_t norm_key_action_tmp[] = {
@@ -142,8 +144,8 @@ init_keys(void) {
     { cfg.hint_rollback.t.k.mod                   , cfg.hint_rollback.t.k.key                   , 0, hint_rollback           , { 0                 }} ,
   };
 
-  comb_key_action_t cover_key_action_tmp[] = {
-    { cfg.escape_cover.t.k.mod                    , cfg.escape_cover.t.k.key                    , 0, escape                  , { 0                 }} ,
+  comb_key_action_t cross_key_action_tmp[] = {
+    { cfg.escape_cross.t.k.mod                    , cfg.escape_cross.t.k.key                    , 0, escape                  , { 0                 }} ,
     { cfg.move_left.t.k.mod                       , cfg.move_left.t.k.key                       , 0, move_cursor             , { .ui = LEFT        }} ,
     { cfg.move_down.t.k.mod                       , cfg.move_down.t.k.key                       , 0, move_cursor             , { .ui = DOWN        }} ,
     { cfg.move_up.t.k.mod                         , cfg.move_up.t.k.key                         , 0, move_cursor             , { .ui = UP          }} ,
@@ -153,7 +155,7 @@ init_keys(void) {
   memcpy(entr_key_action , entr_key_action_tmp , sizeof(entr_key_action_tmp));
   memcpy(norm_key_action , norm_key_action_tmp , sizeof(norm_key_action_tmp));
   memcpy(hint_key_action , hint_key_action_tmp , sizeof(hint_key_action_tmp));
-  memcpy(cover_key_action, cover_key_action_tmp, sizeof(cover_key_action_tmp));
+  memcpy(cross_key_action, cross_key_action_tmp, sizeof(cross_key_action_tmp));
 
   return EXIT_SUCCESS;
 }
@@ -171,7 +173,7 @@ init_keycodes(void) {
   init_keycodes_for_actions(entr_key_action, (int)LENGTH(entr_key_action));
   init_keycodes_for_actions(norm_key_action, (int)LENGTH(norm_key_action));
   init_keycodes_for_actions(hint_key_action, (int)LENGTH(hint_key_action));
-  init_keycodes_for_actions(cover_key_action, (int)LENGTH(cover_key_action));
+  init_keycodes_for_actions(cross_key_action, (int)LENGTH(cross_key_action));
 }
 
 int
@@ -277,8 +279,8 @@ set_mode(const arg_t *arg) {
       handler_of_norm() ; break;
     case HINT_MODE:
       handler_of_hint() ; break;
-    case COVER_MODE:
-      handler_of_cover(); break;
+    case CROSS_MODE:
+      handler_of_cross(); break;
     default:
       break;
   }
@@ -482,7 +484,7 @@ handler_of_hint() {
 }
 
 void
-handler_of_cover() {
+handler_of_cross() {
   XEvent ev;
   XColor color;
   XSetWindowAttributes attr;
@@ -497,7 +499,7 @@ handler_of_cover() {
   cursor_hide();
 
   colormap = DefaultColormap(dpy, screen);
-  if (!XParseColor(dpy, colormap, cfg.cover_bg_color.t.s, &color) || !XAllocColor(dpy, colormap, &color)) {
+  if (!XParseColor(dpy, colormap, cfg.cross_bg_color.t.s, &color) || !XAllocColor(dpy, colormap, &color)) {
     color.pixel = BlackPixel(dpy, screen);
   }
 
@@ -505,48 +507,56 @@ handler_of_cover() {
   attr.background_pixel = color.pixel;
   attr.override_redirect = True;
 
-  coverwin = XCreateWindow(dpy, root, selmon->wx, selmon->wy, selmon->ww, selmon->wh,
+  crosswin = XCreateWindow(dpy, root, selmon->wx, selmon->wy, selmon->ww, selmon->wh,
                            0, DefaultDepth(dpy, screen), InputOutput, DefaultVisual(dpy, screen),
                            CWBorderPixel|CWBackPixel|CWOverrideRedirect, &attr);
-  if (!coverwin) {
+  if (!crosswin) {
     cursor_show();
     return;
   }
 
-  cover_update_coverwinsz(selmon->mx, selmon->my, selmon->ww, selmon->wh);
+  cross_update_crosswinsz(selmon->mx, selmon->my, selmon->ww, selmon->wh);
   cursor_position_update_absolute(selmon->mx + selmon->ww/2, selmon->my + selmon->mh/2);
 
   {
-    unsigned long opacity = (unsigned long)(0xFFFFFFFFul * (1 - cfg.cover_window_transparency.t.d));
+    unsigned long opacity = (unsigned long)(0xFFFFFFFFul * (1 - cfg.cross_window_transparency.t.d));
     Atom XA_NET_WM_WINDOW_OPACITY = XInternAtom(dpy, "_NET_WM_WINDOW_OPACITY", False);
-    XChangeProperty(dpy, coverwin, XA_NET_WM_WINDOW_OPACITY, XA_CARDINAL, 32,
+    XChangeProperty(dpy, crosswin, XA_NET_WM_WINDOW_OPACITY, XA_CARDINAL, 32,
                     PropModeReplace, (unsigned char *)&opacity, 1L);
   }
 
-  XMapWindow(dpy, coverwin);
+  XMapWindow(dpy, crosswin);
   XSync(dpy, False);
+  if (shape_available < 0) {
+    int shape_event_base, shape_error_base;
+    shape_available = XShapeQueryExtension(dpy, &shape_event_base, &shape_error_base) ? 1 : 0;
+    if (!shape_available) {
+      fprintf(stderr, "handler_of_cross: warning: XShape extension unavailable\n");
+    }
+  }
+  cross_update_shape();
 
-  XSelectInput(dpy, coverwin, KeyPressMask);
+  XSelectInput(dpy, crosswin, KeyPressMask);
 
-  if (XGrabKeyboard(dpy, coverwin, True, GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess) {
-    fprintf(stderr, "handler_of_cover: warning: XGrabKeyboard failed\n");
+  if (XGrabKeyboard(dpy, crosswin, True, GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess) {
+    fprintf(stderr, "handler_of_cross: warning: XGrabKeyboard failed\n");
   }
 
-  while (running && mode == COVER_MODE) {
+  while (running && mode == CROSS_MODE) {
     if (!wait_for_event(&ev, 5000)) continue;
     if (ev.type != KeyPress) continue;
 
-    /* 如果 cover 窗口太小则退出 */
-    if (coverwinsz.w < csr->w + 2 && coverwinsz.h < csr->h + 2) {
+    /* 如果 cross 窗口太小则退出 */
+    if (crosswinsz.w < csr->w + 2 && crosswinsz.h < csr->h + 2) {
       break;
     }
-    handle_event(ev, cover_key_action, (int)LENGTH(cover_key_action));
+    handle_event(ev, cross_key_action, (int)LENGTH(cross_key_action));
   }
 
   XUngrabKeyboard(dpy, CurrentTime);
-  XUnmapWindow(dpy, coverwin);
-  XDestroyWindow(dpy, coverwin);
-  coverwin = 0;
+  XUnmapWindow(dpy, crosswin);
+  XDestroyWindow(dpy, crosswin);
+  crosswin = 0;
   XFlush(dpy);
 
   cursor_show();
@@ -562,7 +572,7 @@ escape(const arg_t *arg) {
   switch (mode) {
     case NORM_MODE:
       mode = EMPTY_MODE; break;
-    case COVER_MODE:
+    case CROSS_MODE:
       mode = NORM_MODE;  break;
     case HINT_MODE:
       mode = NORM_MODE;  break;
@@ -576,8 +586,8 @@ move_cursor(const arg_t *arg) {
   switch (mode) {
     case NORM_MODE:
       move_of_norm(arg);  break;
-    case COVER_MODE:
-      move_of_cover(arg); break;
+    case CROSS_MODE:
+      move_of_cross(arg); break;
     case HINT_MODE:
       break;
     default:
@@ -732,33 +742,34 @@ hint_redraw() {
 }
 
 void
-move_of_cover(const arg_t *arg) {
+move_of_cross(const arg_t *arg) {
   switch (arg->ui) {
     case LEFT:
-      coverwinsz.w /= 2;
+      crosswinsz.w /= 2;
       break;
     case DOWN:
-      coverwinsz.h /= 2;
-      if (coverwinsz.h > csr->h) {
-        coverwinsz.y += coverwinsz.h;
+      crosswinsz.h /= 2;
+      if (crosswinsz.h > csr->h) {
+        crosswinsz.y += crosswinsz.h;
       }
       break;
     case UP:
-      coverwinsz.h /= 2;
+      crosswinsz.h /= 2;
       break;
     case RIGHT:
-      coverwinsz.w /= 2;
-      if (coverwinsz.w > csr->w) {
-        coverwinsz.x += coverwinsz.w;
+      crosswinsz.w /= 2;
+      if (crosswinsz.w > csr->w) {
+        crosswinsz.x += crosswinsz.w;
       }
       break;
     default:
       break;
   };
-  coverwinsz.w = coverwinsz.w < csr->w ? csr->w : coverwinsz.w;
-  coverwinsz.h = coverwinsz.h < csr->h ? csr->h : coverwinsz.h;
-  cursor_position_update_absolute(coverwinsz.x + coverwinsz.w/2, coverwinsz.y + coverwinsz.h/2);
-  XMoveResizeWindow(dpy, coverwin, coverwinsz.x, coverwinsz.y, coverwinsz.w, coverwinsz.h);
+  crosswinsz.w = crosswinsz.w < csr->w ? csr->w : crosswinsz.w;
+  crosswinsz.h = crosswinsz.h < csr->h ? csr->h : crosswinsz.h;
+  cursor_position_update_absolute(crosswinsz.x + crosswinsz.w/2, crosswinsz.y + crosswinsz.h/2);
+  XMoveResizeWindow(dpy, crosswin, crosswinsz.x, crosswinsz.y, crosswinsz.w, crosswinsz.h);
+  cross_update_shape();
   XFlush(dpy);
 }
 
@@ -851,8 +862,44 @@ update_hint_positions() {
 }
 
 void
-cover_update_coverwinsz(int x, int y, int w, int h) {
-  coverwinsz.x = x; coverwinsz.y = y; coverwinsz.w = w; coverwinsz.h = h;
+cross_update_crosswinsz(int x, int y, int w, int h) {
+  crosswinsz.x = x; crosswinsz.y = y; crosswinsz.w = w; crosswinsz.h = h;
+}
+
+void
+cross_update_shape() {
+  if (!crosswin) {
+    return;
+  }
+  if (shape_available == 0) {
+    return;
+  }
+
+  int thickness = MIN(csr->w, csr->h);
+  int max_thickness = MIN(crosswinsz.w, crosswinsz.h);
+  if (max_thickness < 1) {
+    return;
+  }
+  if (thickness > max_thickness) {
+    thickness = max_thickness;
+  }
+  if (thickness < 1) {
+    thickness = 1;
+  }
+
+  int v_x = crosswinsz.w / 2 - thickness / 2;
+  int h_y = crosswinsz.h / 2 - thickness / 2;
+  XRectangle rects[2];
+  rects[0].x = v_x;
+  rects[0].y = 0;
+  rects[0].width = thickness;
+  rects[0].height = crosswinsz.h;
+  rects[1].x = 0;
+  rects[1].y = h_y;
+  rects[1].width = crosswinsz.w;
+  rects[1].height = thickness;
+
+  XShapeCombineRectangles(dpy, crosswin, ShapeBounding, 0, 0, rects, 2, ShapeSet, Unsorted);
 }
 
 void
@@ -1144,7 +1191,7 @@ cleanup(int dummy) {
     /* 只销毁存在的窗口 */
     if (csrwin) { XUnmapWindow(dpy, csrwin); XDestroyWindow(dpy, csrwin); csrwin = 0; }
     if (hintwin) { XUnmapWindow(dpy, hintwin); XDestroyWindow(dpy, hintwin); hintwin = 0; }
-    if (coverwin) { XUnmapWindow(dpy, coverwin); XDestroyWindow(dpy, coverwin); coverwin = 0; }
+    if (crosswin) { XUnmapWindow(dpy, crosswin); XDestroyWindow(dpy, crosswin); crosswin = 0; }
 
     XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
     XFlush(dpy);

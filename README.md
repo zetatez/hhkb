@@ -47,11 +47,11 @@ hhkb
 
 ![hint mode](https://github.com/zetatez/hhkb/blob/master/demos/hint.gif)
 
-- Use `Alt|Control+c` to enter `cover mode`:
-    - use `h/j/k/l` to select half of the current window
-    - press `Escape`  to quit cover mode, and escape to the norm mode, the cursor will show on the center of the last window
+- Use `Alt|Control+c` to enter `cross mode`:
+    - use `h/j/k/l` on the crosshair to choose left/down/up/right and keep halving the area
+    - press `Escape`  to quit cross mode, and escape to the norm mode, the cursor will show on the center of the last window
 
-![cover mode](https://github.com/zetatez/hhkb/blob/master/demos/cover.gif)
+![cross mode](https://github.com/zetatez/hhkb/blob/master/demos/cover.gif)
 
 - Use `Alt|Control+r` to restart hhkb: when you have changed the configuration after the hhkb is already started
 

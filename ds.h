@@ -3,7 +3,7 @@
 
 #include "config.h"
 
-typedef enum { EMPTY_MODE, NORM_MODE, COVER_MODE, HINT_MODE            } u_mode_t;
+typedef enum { EMPTY_MODE, NORM_MODE, CROSS_MODE, HINT_MODE            } u_mode_t;
 typedef enum { UP, DOWN, LEFT, RIGHT                                   } direction_t;
 typedef enum { LEFT_BUT, MIDDLE_BUT, RIGHT_BUT                         } cursor_button_t;
 typedef enum { N_U, N_V, N_L, N_B, N_H, N_E, N_C, N_A, N_S, N_D, N_F   } cursor_fast_t;

@@ -44,6 +44,7 @@ static keycode_t keycodes[] = {
 };
 
 int  init_keys(void);
+void init_keycodes(void);
 int  init_monitors(void);
 int  init_cursor(void);
 
@@ -101,52 +102,52 @@ int  help(void);
 int
 init_keys(void) {
   comb_key_action_t entr_key_action_tmp[] = {
-    { cfg.quit.t.k.mod                            , cfg.quit.t.k.key                            , quit                    , { 0                }}  ,
-    { cfg.restart.t.k.mod                         , cfg.restart.t.k.key                         , restart                 , { 0                }}  ,
-    { cfg.set_to_norm_mode.t.k.mod                , cfg.set_to_norm_mode.t.k.key                , set_mode                , { .ui = NORM_MODE  }}  ,
-    { cfg.set_to_hint_mode.t.k.mod                , cfg.set_to_hint_mode.t.k.key                , set_mode                , { .ui = HINT_MODE  }}  ,
-    { cfg.set_to_cover_mode.t.k.mod               , cfg.set_to_cover_mode.t.k.key               , set_mode                , { .ui = COVER_MODE }}  ,
+    { cfg.quit.t.k.mod                            , cfg.quit.t.k.key                            , 0, quit                    , { 0                }}  ,
+    { cfg.restart.t.k.mod                         , cfg.restart.t.k.key                         , 0, restart                 , { 0                }}  ,
+    { cfg.set_to_norm_mode.t.k.mod                , cfg.set_to_norm_mode.t.k.key                , 0, set_mode                , { .ui = NORM_MODE  }}  ,
+    { cfg.set_to_hint_mode.t.k.mod                , cfg.set_to_hint_mode.t.k.key                , 0, set_mode                , { .ui = HINT_MODE  }}  ,
+    { cfg.set_to_cover_mode.t.k.mod               , cfg.set_to_cover_mode.t.k.key               , 0, set_mode                , { .ui = COVER_MODE }}  ,
   };
 
   comb_key_action_t norm_key_action_tmp[] = {
-    { cfg.escape_norm.t.k.mod                     , cfg.escape_norm.t.k.key                     , escape                  , { 0                 }} ,
-    { cfg.move_left.t.k.mod                       , cfg.move_left.t.k.key                       , move_cursor             , { .ui = LEFT        }} ,
-    { cfg.move_down.t.k.mod                       , cfg.move_down.t.k.key                       , move_cursor             , { .ui = DOWN        }} ,
-    { cfg.move_up.t.k.mod                         , cfg.move_up.t.k.key                         , move_cursor             , { .ui = UP          }} ,
-    { cfg.move_right.t.k.mod                      , cfg.move_right.t.k.key                      , move_cursor             , { .ui = RIGHT       }} ,
-    { cfg.norm_vim_move_up.t.k.mod                , cfg.norm_vim_move_up.t.k.key                , move_cursor_fast        , { .ui = N_U         }} ,
-    { cfg.norm_vim_move_middle_vertical.t.k.mod   , cfg.norm_vim_move_middle_vertical.t.k.key   , move_cursor_fast        , { .ui = N_V         }} ,
-    { cfg.norm_vim_move_down.t.k.mod              , cfg.norm_vim_move_down.t.k.key              , move_cursor_fast        , { .ui = N_L         }} ,
-    { cfg.norm_vim_move_begin.t.k.mod             , cfg.norm_vim_move_begin.t.k.key             , move_cursor_fast        , { .ui = N_B         }} ,
-    { cfg.norm_vim_move_middle_horizontal.t.k.mod , cfg.norm_vim_move_middle_horizontal.t.k.key , move_cursor_fast        , { .ui = N_H         }} ,
-    { cfg.norm_vim_move_end.t.k.mod               , cfg.norm_vim_move_end.t.k.key               , move_cursor_fast        , { .ui = N_E         }} ,
-    { cfg.norm_vim_move_center.t.k.mod            , cfg.norm_vim_move_center.t.k.key            , move_cursor_fast        , { .ui = N_C         }} ,
-    { cfg.norm_vim_move_upleft.t.k.mod            , cfg.norm_vim_move_upleft.t.k.key            , move_cursor_fast        , { .ui = N_A         }} ,
-    { cfg.norm_vim_move_bottomleft.t.k.mod        , cfg.norm_vim_move_bottomleft.t.k.key        , move_cursor_fast        , { .ui = N_S         }} ,
-    { cfg.norm_vim_move_bottomright.t.k.mod       , cfg.norm_vim_move_bottomright.t.k.key       , move_cursor_fast        , { .ui = N_D         }} ,
-    { cfg.norm_vim_move_upright.t.k.mod           , cfg.norm_vim_move_upright.t.k.key           , move_cursor_fast        , { .ui = N_F         }} ,
-    { cfg.norm_select.t.k.mod                     , cfg.norm_select.t.k.key                     , norm_toggle_select      , { 0                 }} ,
-    { cfg.norm_select_line.t.k.mod                , cfg.norm_select_line.t.k.key                , norm_toggle_select_line , { 0                 }} ,
-    { cfg.norm_scroll_up.t.k.mod                  , cfg.norm_scroll_up.t.k.key                  , cursor_scroll           , { .ui = UP          }} ,
-    { cfg.norm_scroll_down.t.k.mod                , cfg.norm_scroll_down.t.k.key                , cursor_scroll           , { .ui = DOWN        }} ,
-    { cfg.norm_scroll_left.t.k.mod                , cfg.norm_scroll_left.t.k.key                , cursor_scroll           , { .ui = LEFT        }} ,
-    { cfg.norm_scroll_right.t.k.mod               , cfg.norm_scroll_right.t.k.key               , cursor_scroll           , { .ui = RIGHT       }} ,
-    { cfg.cursor_left_click.t.k.mod               , cfg.cursor_left_click.t.k.key               , cursor_button_click     , { .ui = LEFT_BUT    }} ,
-    { cfg.cursor_middle_click.t.k.mod             , cfg.cursor_middle_click.t.k.key             , cursor_button_click     , { .ui = MIDDLE_BUT  }} ,
-    { cfg.cursor_right_click.t.k.mod              , cfg.cursor_right_click.t.k.key              , cursor_button_click     , { .ui = RIGHT_BUT   }} ,
+    { cfg.escape_norm.t.k.mod                     , cfg.escape_norm.t.k.key                     , 0, escape                  , { 0                 }} ,
+    { cfg.move_left.t.k.mod                       , cfg.move_left.t.k.key                       , 0, move_cursor             , { .ui = LEFT        }} ,
+    { cfg.move_down.t.k.mod                       , cfg.move_down.t.k.key                       , 0, move_cursor             , { .ui = DOWN        }} ,
+    { cfg.move_up.t.k.mod                         , cfg.move_up.t.k.key                         , 0, move_cursor             , { .ui = UP          }} ,
+    { cfg.move_right.t.k.mod                      , cfg.move_right.t.k.key                      , 0, move_cursor             , { .ui = RIGHT       }} ,
+    { cfg.norm_vim_move_up.t.k.mod                , cfg.norm_vim_move_up.t.k.key                , 0, move_cursor_fast        , { .ui = N_U         }} ,
+    { cfg.norm_vim_move_middle_vertical.t.k.mod   , cfg.norm_vim_move_middle_vertical.t.k.key   , 0, move_cursor_fast        , { .ui = N_V         }} ,
+    { cfg.norm_vim_move_down.t.k.mod              , cfg.norm_vim_move_down.t.k.key              , 0, move_cursor_fast        , { .ui = N_L         }} ,
+    { cfg.norm_vim_move_begin.t.k.mod             , cfg.norm_vim_move_begin.t.k.key             , 0, move_cursor_fast        , { .ui = N_B         }} ,
+    { cfg.norm_vim_move_middle_horizontal.t.k.mod , cfg.norm_vim_move_middle_horizontal.t.k.key , 0, move_cursor_fast        , { .ui = N_H         }} ,
+    { cfg.norm_vim_move_end.t.k.mod               , cfg.norm_vim_move_end.t.k.key               , 0, move_cursor_fast        , { .ui = N_E         }} ,
+    { cfg.norm_vim_move_center.t.k.mod            , cfg.norm_vim_move_center.t.k.key            , 0, move_cursor_fast        , { .ui = N_C         }} ,
+    { cfg.norm_vim_move_upleft.t.k.mod            , cfg.norm_vim_move_upleft.t.k.key            , 0, move_cursor_fast        , { .ui = N_A         }} ,
+    { cfg.norm_vim_move_bottomleft.t.k.mod        , cfg.norm_vim_move_bottomleft.t.k.key        , 0, move_cursor_fast        , { .ui = N_S         }} ,
+    { cfg.norm_vim_move_bottomright.t.k.mod       , cfg.norm_vim_move_bottomright.t.k.key       , 0, move_cursor_fast        , { .ui = N_D         }} ,
+    { cfg.norm_vim_move_upright.t.k.mod           , cfg.norm_vim_move_upright.t.k.key           , 0, move_cursor_fast        , { .ui = N_F         }} ,
+    { cfg.norm_select.t.k.mod                     , cfg.norm_select.t.k.key                     , 0, norm_toggle_select      , { 0                 }} ,
+    { cfg.norm_select_line.t.k.mod                , cfg.norm_select_line.t.k.key                , 0, norm_toggle_select_line , { 0                 }} ,
+    { cfg.norm_scroll_up.t.k.mod                  , cfg.norm_scroll_up.t.k.key                  , 0, cursor_scroll           , { .ui = UP          }} ,
+    { cfg.norm_scroll_down.t.k.mod                , cfg.norm_scroll_down.t.k.key                , 0, cursor_scroll           , { .ui = DOWN        }} ,
+    { cfg.norm_scroll_left.t.k.mod                , cfg.norm_scroll_left.t.k.key                , 0, cursor_scroll           , { .ui = LEFT        }} ,
+    { cfg.norm_scroll_right.t.k.mod               , cfg.norm_scroll_right.t.k.key               , 0, cursor_scroll           , { .ui = RIGHT       }} ,
+    { cfg.cursor_left_click.t.k.mod               , cfg.cursor_left_click.t.k.key               , 0, cursor_button_click     , { .ui = LEFT_BUT    }} ,
+    { cfg.cursor_middle_click.t.k.mod             , cfg.cursor_middle_click.t.k.key             , 0, cursor_button_click     , { .ui = MIDDLE_BUT  }} ,
+    { cfg.cursor_right_click.t.k.mod              , cfg.cursor_right_click.t.k.key              , 0, cursor_button_click     , { .ui = RIGHT_BUT   }} ,
   };
 
   comb_key_action_t hint_key_action_tmp[] = {
-    { cfg.escape_hint.t.k.mod                     , cfg.escape_hint.t.k.key                     , escape                  , { 0                 }} ,
-    { cfg.hint_rollback.t.k.mod                   , cfg.hint_rollback.t.k.key                   , hint_rollback           , { 0                 }} ,
+    { cfg.escape_hint.t.k.mod                     , cfg.escape_hint.t.k.key                     , 0, escape                  , { 0                 }} ,
+    { cfg.hint_rollback.t.k.mod                   , cfg.hint_rollback.t.k.key                   , 0, hint_rollback           , { 0                 }} ,
   };
 
   comb_key_action_t cover_key_action_tmp[] = {
-    { cfg.escape_cover.t.k.mod                    , cfg.escape_cover.t.k.key                    , escape                  , { 0                 }} ,
-    { cfg.move_left.t.k.mod                       , cfg.move_left.t.k.key                       , move_cursor             , { .ui = LEFT        }} ,
-    { cfg.move_down.t.k.mod                       , cfg.move_down.t.k.key                       , move_cursor             , { .ui = DOWN        }} ,
-    { cfg.move_up.t.k.mod                         , cfg.move_up.t.k.key                         , move_cursor             , { .ui = UP          }} ,
-    { cfg.move_right.t.k.mod                      , cfg.move_right.t.k.key                      , move_cursor             , { .ui = RIGHT       }} ,
+    { cfg.escape_cover.t.k.mod                    , cfg.escape_cover.t.k.key                    , 0, escape                  , { 0                 }} ,
+    { cfg.move_left.t.k.mod                       , cfg.move_left.t.k.key                       , 0, move_cursor             , { .ui = LEFT        }} ,
+    { cfg.move_down.t.k.mod                       , cfg.move_down.t.k.key                       , 0, move_cursor             , { .ui = DOWN        }} ,
+    { cfg.move_up.t.k.mod                         , cfg.move_up.t.k.key                         , 0, move_cursor             , { .ui = UP          }} ,
+    { cfg.move_right.t.k.mod                      , cfg.move_right.t.k.key                      , 0, move_cursor             , { .ui = RIGHT       }} ,
   };
 
   memcpy(entr_key_action , entr_key_action_tmp , sizeof(entr_key_action_tmp));
@@ -155,6 +156,22 @@ init_keys(void) {
   memcpy(cover_key_action, cover_key_action_tmp, sizeof(cover_key_action_tmp));
 
   return EXIT_SUCCESS;
+}
+
+static void
+init_keycodes_for_actions(comb_key_action_t *actions, int len) {
+  if (!dpy) return;
+  for (int i = 0; i < len; i++) {
+    actions[i].keycode = XKeysymToKeycode(dpy, actions[i].key);
+  }
+}
+
+void
+init_keycodes(void) {
+  init_keycodes_for_actions(entr_key_action, (int)LENGTH(entr_key_action));
+  init_keycodes_for_actions(norm_key_action, (int)LENGTH(norm_key_action));
+  init_keycodes_for_actions(hint_key_action, (int)LENGTH(hint_key_action));
+  init_keycodes_for_actions(cover_key_action, (int)LENGTH(cover_key_action));
 }
 
 int
@@ -212,14 +229,13 @@ updatenumlockmask(void) {
 void
 grab_mode_keys(void) {
   updatenumlockmask();
-  KeyCode code;
   unsigned int i, j;
   unsigned int modifiers[] = { 0, LockMask, numlockmask, numlockmask | LockMask };
   XUngrabKey(dpy, AnyKey, AnyModifier, root);
   for (i = 0; i < LENGTH(entr_key_action); i++) {
-    if ((code = XKeysymToKeycode(dpy, entr_key_action[i].key))) {
+    if (entr_key_action[i].keycode) {
       for (j = 0; j < LENGTH(modifiers); j++) {
-        XGrabKey(dpy, code, entr_key_action[i].mod | modifiers[j], root, True, GrabModeAsync, GrabModeAsync);
+        XGrabKey(dpy, entr_key_action[i].keycode, entr_key_action[i].mod | modifiers[j], root, True, GrabModeAsync, GrabModeAsync);
       }
     }
   }
@@ -229,14 +245,14 @@ void
 handle_event(XEvent ev, comb_key_action_t *keys, int len) {
   // processing mod + key first
   for (int i = 0; i < len; i++) {
-    if (keys[i].mod != NoSymbol && CLEANMASK(ev.xkey.state) == CLEANMASK(keys[i].mod) && (KeyCode)(ev.xkey.keycode) == XKeysymToKeycode(dpy, keys[i].key)) {
+    if (keys[i].mod != NoSymbol && keys[i].keycode && CLEANMASK(ev.xkey.state) == CLEANMASK(keys[i].mod) && (KeyCode)(ev.xkey.keycode) == keys[i].keycode) {
       keys[i].func(&keys[i].arg);
       return;
     }
   }
   // processing _ + key last
   for (int i = 0; i < len; i++) {
-    if (keys[i].mod == NoSymbol && (KeyCode)(ev.xkey.keycode) == XKeysymToKeycode(dpy, keys[i].key)) {
+    if (keys[i].mod == NoSymbol && keys[i].keycode && (KeyCode)(ev.xkey.keycode) == keys[i].keycode) {
       keys[i].func(&keys[i].arg);
       return;
     }
@@ -1076,12 +1092,13 @@ setup(void) {
   if (init_cfg())      {
     exit(cleanup(1));
   }
-  if (init_keys()) {
-    exit(cleanup(1));
-  }
   if (init_monitors()) {
     exit(cleanup(1));
   }
+  if (init_keys()) {
+    exit(cleanup(1));
+  }
+  init_keycodes();
   if (init_cursor()) {
     exit(cleanup(1));
   }

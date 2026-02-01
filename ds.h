@@ -69,6 +69,7 @@ typedef struct comb_key_action_t comb_key_action_t;
 struct comb_key_action_t {
   int mod;
   KeySym key;
+  KeyCode keycode;
   void (*func)(const arg_t *);
   const arg_t arg;
 };

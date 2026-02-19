@@ -38,10 +38,9 @@ install: all
 	mkdir -p ${DESTDIR}${MANPREFIX}/man1
 	cat hhkb.1 | gzip > hhkb.1.gz
 	install -m644 hhkb.1.gz ${DESTDIR}${MANPREFIX}/man1/
-	mkdir -p ~/.config/hhkb
 
 uninstall:
 	rm -f ${DESTDIR}${PREFIX}/bin/hhkb\
-		${DESTDIR}${MANPREFIX}/man1/hhkb.1.gz
+    		${DESTDIR}${MANPREFIX}/man1/hhkb.1.gz
 
 .PHONY: all options clean

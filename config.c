@@ -12,7 +12,7 @@ cfg_default(void) {
   cfg.cursor_min_speed                = (cfg_item_t){{ .i = 12                                                              }, "cursor-min-speed"                };
   cfg.cursor_max_speed                = (cfg_item_t){{ .i = 148                                                             }, "cursor-max-speed"                };
   cfg.cursor_size_width               = (cfg_item_t){{ .i = 10                                                              }, "cursor-size-width"               };
-  cfg.cursor_size_height              = (cfg_item_t){{ .i = 10                                                              }, "cursor-size-hegiht"              };
+  cfg.cursor_size_height              = (cfg_item_t){{ .i = 10                                                              }, "cursor-size-height"              };
   cfg.cursor_bg_color                 = (cfg_item_t){{ .s = "#0000FF"                                                       }, "cursor-bg-color"                 };
   cfg.hint_window_transparency        = (cfg_item_t){{ .d = 0.618                                                           }, "hint-window-transparency"        };
   cfg.hint_bg_color                   = (cfg_item_t){{ .s = "#00BFFF"                                                       }, "hint-bg-color"                   };
@@ -53,7 +53,7 @@ cfg_default(void) {
   cfg.norm_scroll_right               = (cfg_item_t){{ .k = {ShiftMask         , XStringToKeysym("o")                      }}, "norm-scroll-right"               };
   cfg.cursor_left_click               = (cfg_item_t){{ .k = {NoSymbol          , XStringToKeysym("n")                      }}, "cursor-left-click"               };
   cfg.cursor_middle_click             = (cfg_item_t){{ .k = {NoSymbol          , XStringToKeysym("m")                      }}, "cursor-middle-click"             };
-  cfg.cursor_right_click              = (cfg_item_t){{ .k = {NoSymbol          , XStringToKeysym("comma")                  }}, "cursor-rihgt-click"              };
+  cfg.cursor_right_click              = (cfg_item_t){{ .k = {NoSymbol          , XStringToKeysym("comma")                  }}, "cursor-right-click"              };
   cfg.hint_rollback                   = (cfg_item_t){{ .k = {NoSymbol          , XStringToKeysym("BackSpace")              }}, "hint-rollback"                   };
 }
 

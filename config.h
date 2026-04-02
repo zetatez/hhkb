@@ -55,7 +55,6 @@ struct cfg_t {
   cfg_item_t escape_norm;
   cfg_item_t escape_hint;
   cfg_item_t escape_cross;
-  cfg_item_t escape_hist;
   cfg_item_t move_left;
   cfg_item_t move_down;
   cfg_item_t move_up;

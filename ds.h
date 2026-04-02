@@ -34,8 +34,7 @@ struct cursor_t {
   int is_hidden;
   int w;
   int h;
-  char *bg_color;
-  /* char *fg_color; */
+  char bg_color[1024];
 };
 
 typedef struct position_t position_t;

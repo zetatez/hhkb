@@ -45,6 +45,18 @@ static keycode_t keycodes[] = {
   {10, '1'}, {11, '2'}, {12, '3'}, {13, '4'}, {14, '5'}, {15, '6'}, {16, '7'}, {17, '8'}, {18, '9'}, {19, '0'},
 };
 
+static char keycode_map[256] = {0};
+
+static void
+init_keycode_map(void) {
+  memset(keycode_map, 0, sizeof(keycode_map));
+  for (int i = 0; i < LENGTH(keycodes); i++) {
+    if (keycodes[i].keycode >= 0 && keycodes[i].keycode < 256) {
+      keycode_map[keycodes[i].keycode] = keycodes[i].character;
+    }
+  }
+}
+
 int  init_keys(void);
 void init_keycodes(void);
 int  init_monitors(void);
@@ -210,7 +222,7 @@ init_cursor(void) {
   csr->is_hidden = 0;
   csr->w = cfg.cursor_size_width.t.i;
   csr->h = cfg.cursor_size_height.t.i;
-  csr->bg_color = cfg.cursor_bg_color.t.s;
+  strncpy(csr->bg_color, cfg.cursor_bg_color.t.s, sizeof(csr->bg_color) - 1);
   return EXIT_SUCCESS;
 }
 
@@ -247,16 +259,15 @@ grab_mode_keys(void) {
 
 void
 handle_event(XEvent ev, comb_key_action_t *keys, int len) {
-  // processing mod + key first
   for (int i = 0; i < len; i++) {
-    if (keys[i].mod != NoSymbol && keys[i].keycode && CLEANMASK(ev.xkey.state) == CLEANMASK(keys[i].mod) && (KeyCode)(ev.xkey.keycode) == keys[i].keycode) {
+    if (!keys[i].keycode || (KeyCode)(ev.xkey.keycode) != keys[i].keycode) {
+      continue;
+    }
+    if (CLEANMASK(ev.xkey.state) == CLEANMASK(keys[i].mod)) {
       keys[i].func(&keys[i].arg);
       return;
     }
-  }
-  // processing _ + key last
-  for (int i = 0; i < len; i++) {
-    if (keys[i].mod == NoSymbol && keys[i].keycode && (KeyCode)(ev.xkey.keycode) == keys[i].keycode) {
+    if (keys[i].mod == NoSymbol) {
       keys[i].func(&keys[i].arg);
       return;
     }
@@ -817,10 +828,8 @@ move_of_norm(const arg_t *arg) {
 
 char
 keycode2character(int keycode) {
-  for (int i = 0; i < LENGTH(keycodes); i++) {
-    if (keycodes[i].keycode == keycode) {
-      return keycodes[i].character;
-    }
+  if (keycode >= 0 && keycode < 256) {
+    return keycode_map[keycode];
   }
   return '\0';
 }
@@ -845,31 +854,18 @@ update_hint_positions() {
   w = selmon->mw/sz;
   h = selmon->mh/sz;
 
-  // head is empty
-  hint_positions = ecalloc(1, sizeof(hint_position_t));
-  hint_positions->next = NULL;
-
-  hint_position_t *tmp;
-  tmp = hint_positions;
-
   for (int i = 0; i < sz; i++) {
     for (int j = 0; j < sz; j++) {
       hint_position_t *hr;
       hr = ecalloc(1, sizeof(hint_position_t));
-      hr->next = NULL;
-      hr->x = i * w + w/2;     /* hr->x = selmon->mx + i * w + w/2;   */
-      hr->y = j * h + 4*h/5;   /* hr->y = selmon->my + j * h + 4*h/5; */
+      hr->x = i * w + w/2;
+      hr->y = j * h + 4*h/5;
       hr->text[0] = cfg.hint_letters.t.s[j];
       hr->text[1] = cfg.hint_letters.t.s[i];
-      tmp->next = hr;
-      tmp = tmp->next;
+      hr->next = hint_positions;
+      hint_positions = hr;
     }
   }
-
-  // clean empty head
-  tmp = hint_positions;
-  hint_positions = hint_positions->next;
-  free(tmp);
 
   return EXIT_SUCCESS;
 }
@@ -1156,6 +1152,7 @@ update_selmon() {
 
 void
 setup(void) {
+  init_keycode_map();
   if (init_cfg())      {
     exit(cleanup(1));
   }

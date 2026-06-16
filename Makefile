@@ -33,7 +33,12 @@ dist: clean
 	${RM} -r hhkb-${VERSION}
 
 install: all
-	install -m755 hhkb ${PREFIX}/bin/
+	sudo install -m755 hhkb ${PREFIX}/bin/
+	mkdir -p ${HOME}/.config/systemd/user
+	install -m644 hhkb.service ${HOME}/.config/systemd/user/
+	systemctl --user disable --now hhkb 2>/dev/null || true
+	systemctl --user daemon-reload
+	systemctl --user enable --now hhkb
 
 uninstall:
 	${RM} ${PREFIX}/bin/hhkb ${MANPREFIX}/man1/hhkb.1.gz

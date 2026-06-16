@@ -14,7 +14,7 @@ options:
 .c.o:
 	${CC} -c ${CFLAGS} $<
 
-${OBJ}: config.mk
+${OBJ}: config.mk config.h
 
 config.h:
 	cp -f config.def.h $@
@@ -23,24 +23,19 @@ hhkb: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LDFLAGS}
 
 clean:
-	rm -f ${OBJ} hhkb-${VERSION}.tar.gz hhkb.1.gz
+	${RM} ${OBJ} hhkb-${VERSION}.tar.gz hhkb.1.gz
 
 dist: clean
 	mkdir -p hhkb-${VERSION}
 	cp -R LICENSE config.mk Makefile README.md config.h hhkb.1 ${SRC} hhkb-${VERSION}
 	tar -cf hhkb-${VERSION}.tar hhkb-${VERSION}
 	gzip hhkb-${VERSION}.tar
-	rm -rf hhkb-${VERSION}
+	${RM} -r hhkb-${VERSION}
 
 install: all
-	mkdir -p ${DESTDIR}${PREFIX}/bin
-	install -m755 hhkb ${DESTDIR}${PREFIX}/bin/
-	mkdir -p ${DESTDIR}${MANPREFIX}/man1
-	cat hhkb.1 | gzip > hhkb.1.gz
-	install -m644 hhkb.1.gz ${DESTDIR}${MANPREFIX}/man1/
+	install -m755 hhkb ${PREFIX}/bin/
 
 uninstall:
-	rm -f ${DESTDIR}${PREFIX}/bin/hhkb\
-    		${DESTDIR}${MANPREFIX}/man1/hhkb.1.gz
+	${RM} ${PREFIX}/bin/hhkb ${MANPREFIX}/man1/hhkb.1.gz
 
-.PHONY: all options clean
+.PHONY: all options clean dist install uninstall

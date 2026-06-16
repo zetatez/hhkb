@@ -1,0 +1,12 @@
+[Unit]
+Description=HHKB - Keyboard-driven mouse control for X11
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/hhkb -f
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
